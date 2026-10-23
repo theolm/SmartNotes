@@ -1,0 +1,47 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+  - "build/**"
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+  - "**/*.config.dart"
+  - "**/generated/**"
+  - android/**
+  - ios/**
+  - macos/**
+  errors:
+    invalid_annotation_target: ignore
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+formatter:
+  trailing_commas: preserve
+
+linter:
+  rules:
+  # Error rules
+  - always_declare_return_types
+  - avoid_print
+  - avoid_relative_lib_imports
+  - avoid_types_as_parameter_names
+  - no_duplicate_case_values
+
+  # Style rules
+  - prefer_const_constructors
+  - prefer_const_constructors_in_immutables
+  - prefer_const_literals_to_create_immutables
+  - prefer_final_fields
+  - prefer_final_locals
+  - prefer_single_quotes
+
+  # Good practices
+  - use_key_in_widget_constructors
+  - prefer_is_empty
+  - prefer_is_not_empty
+  - unnecessary_const
+  - unnecessary_new
+  - unnecessary_null_in_if_null_operators
+  - unnecessary_this

@@ -1,0 +1,133 @@
+name: smartnotes
+description: "An offline voice journal with local transcription and note formatting."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  sqlite3: ^3.5.2
+  sqlite3_vec: 0.1.2
+  uuid: ^4.5.1
+  crypto: ^3.0.6
+  archive: ^4.0.7
+  file_picker: ^13.1.0
+  shared_preferences: ^2.3.0
+  flutter_markdown_plus: ^1.0.7
+  markdown: ^7.3.0
+  mobx: ^2.6.0
+  flutter_mobx: ^2.3.0
+  get_it: ^9.2.1
+  injectable: ^3.0.0
+  freezed_annotation: ^3.1.0
+  record: ^7.1.0
+  wakelock_plus: ^1.6.1
+  path: ^1.9.0
+  http: ^1.6.0
+  path_provider: ^2.1.6
+  intl: ^0.20.2
+  json_annotation: ^4.12.0
+  logger: ^2.7.0
+  auto_route: ^11.1.0
+  diacritic: ^0.1.6
+  flutter_slidable: ^4.0.3
+  local_auth: ^3.0.2
+  whisper_ggml: 2.7.1
+  ffmpeg_kit_flutter_new_min: 3.6.7
+  ffi: ^2.1.4
+  llamadart: 0.11.1
+  llamadart_llama_cpp_flutter: 0.0.21
+  just_audio: ^0.10.6
+  audio_session: ^0.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+  build_runner: ^2.15.0
+  mobx_codegen: ^2.7.7
+  injectable_generator: ^3.0.2
+  mocktail: ^1.0.5
+  freezed: ^3.2.5
+  json_serializable: ^6.10.0
+  auto_route_generator: ^10.5.0
+  path_provider_platform_interface: any
+  plugin_platform_interface: any
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/fonts/
+    - assets/licenses/whisper-model-MIT.txt
+    - assets/licenses/qwen3-model-Apache-2.0.txt
+
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-Regular.ttf
+        - asset: assets/fonts/Archivo-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Archivo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Archivo-Bold.ttf
+          weight: 700
+    - family: Archivo Black
+      fonts:
+        - asset: assets/fonts/ArchivoBlack-Regular.ttf
+
+# Only the GGUF runtime is needed; do not ship LiteRT-LM or Vulkan modules.
+hooks:
+  user_defines:
+    llamadart:
+      llamadart_native_runtimes: [llama_cpp]
+      llamadart_native_backends:
+        platforms:
+          android: [cpu]
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  macos:
+    generate: true
+    image_path: assets/app_icon.png
+  image_path: assets/app_icon.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: assets/app_icon_foreground.png
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: assets/app_icon_foreground.png
+  remove_alpha_ios: true
+  background_color_ios: "#000000"
+
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+  color: "#000000"
+  color_dark: "#000000"
+  image: assets/splash_icon.png
+  image_dark: assets/splash_icon.png
+  android_gravity: center
+  ios_content_mode: center
+  android_min_sdk: 21
+  fullscreen: false
+  android_12:
+    color: "#000000"
+    color_dark: "#000000"
+    image: assets/splash_icon.png
+    image_dark: assets/splash_icon.png
+dependency_overrides:
+  # whisper_ggml requests ^2.1.0; 3.6.7 preserves its Dart API and adds native
+  # arm64 iOS simulator slices, current Apple packaging, and FFmpeg 8.1.1.
+  # Revalidate local_stt_platform_test.dart when updating either dependency.
+  ffmpeg_kit_flutter_new_min: 3.6.7

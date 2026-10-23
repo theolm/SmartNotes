@@ -1,0 +1,16 @@
+.opencode/
+.DS_Store
+.agents/
+skills-lock.json
+
+.dart_tool/
+build/
+.env*
+google-services.json
+GoogleService-Info.plist
+*.jks
+*.keystore
+key.properties
+local.properties
+.idea/
+*.iml

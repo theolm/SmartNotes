@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - whisper_ggml (1.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - whisper_ggml (from `.symlinks/plugins/whisper_ggml/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  whisper_ggml:
+    :path: ".symlinks/plugins/whisper_ggml/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  whisper_ggml: e49d353bd4736293ca18f7a1e90accec56d9b57d
+
+PODFILE CHECKSUM: ce2bd07e48ac0db9731a3eaa78d3ebaf7cbf8d25
+
+COCOAPODS: 1.16.2
