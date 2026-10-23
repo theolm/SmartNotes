@@ -1,201 +1,403 @@
-# SmartNotes architecture
+# SmartNotes Architecture
 
-## Current boundaries
+This document defines the architecture that all SmartNotes code must follow. It is the source of truth for packages, layering, dependency injection, MobX state, navigation, persistence, local AI, presentation, testing, and code generation. New code must follow these rules. When existing code differs, converge on this document as part of the change instead of introducing another pattern.
 
-The Flutter application in `app/` is the only runtime. There is no Firebase
-Authentication, Firestore, Cloud Functions, account model, or backend package.
-ADR-019 records the local SQLite journal and derived-index decisions; ADRs
-020–022 and this document describe the current local AI implementation.
+## 1. Product constraints
 
-- **Domain:** immutable Freezed entities and service interfaces.
-- **Data:** local SQLite/file/model-download implementations and native AI adapters.
-- **Application:** `JournalLifecycle` owns recovery and automatic pending indexing.
-- **Presentation:** MobX stores consumed by Material widgets.
-- **DI:** get_it + injectable; navigation uses auto_route.
+- Android, iOS, and macOS are supported. Flutter web is not supported.
+- The app is local-first. Journal entries, recordings, transcriptions, settings, and search data stay on the device.
+- There is no account, backend, cloud sync, remote AI, analytics, telemetry, advertising, or API key.
+- Network access is limited to downloading pinned model files.
+- The journal and original recordings are authoritative. Search indexes, chunks, and embeddings are derived and disposable.
+- AI is optional except where setup explicitly requires a model. A missing formatting model never blocks recording, transcription, reading, text search, or backups.
+- The app does not encrypt the database or recordings. App lock protects the interface only.
 
-Keep service interfaces in `lib/domain/services`, implementations in
-`lib/data`, and services consumed by stores rather than widgets. Preserve
-MobX, get_it/injectable, immutable models, and token-based themes. Grouped
-public folders use barrel exports. Generate models/stores/DI/routes using
-build_runner; do not edit generated output manually. UI copy lives in ARB
-localizations. Design context is in `PRODUCT.md` and `app/DESIGN.md`.
+## 2. Stack
 
-## Persistence and retrieval
+| Concern | Package | Use |
+| --- | --- | --- |
+| UI | Flutter, Material 3 | Android, iOS, and macOS UI |
+| State | `mobx`, `flutter_mobx`, `mobx_codegen` | Observable stores and generated `.g.dart` files |
+| Dependency injection | `get_it`, `injectable`, `injectable_generator` | Service locator and generated registration |
+| Navigation | `auto_route`, `auto_route_generator` | Typed routes and generated route classes |
+| Models | `freezed`, `freezed_annotation`, `json_serializable`, `json_annotation` | Immutable models, unions, JSON |
+| Persistence | `sqlite3`, `sqlite3_vec`, `shared_preferences` | Journal, full-text search, vector search, settings |
+| Speech | `whisper_ggml` | On-device Whisper inference |
+| Formatting and embeddings | `llamadart`, `llamadart_llama_cpp_flutter` | On-device Qwen inference through llama.cpp |
+| Audio | `record`, `just_audio`, `audio_session`, `ffmpeg_kit_flutter_new_min` | Capture, playback, decoding |
+| Files | `file_picker`, `path_provider`, `archive`, `crypto`, `uuid` | Imports, backups, hashing, IDs |
+| Authentication | `local_auth` | Optional biometric or device-credential lock |
+| Presentation utilities | `flutter_markdown_plus`, `markdown`, `flutter_slidable`, `intl`, `diacritic`, `logger` | Markdown, lists, formatting, logging |
+| HTTP | `http` | Model downloads only |
+| Tests | `flutter_test`, `integration_test`, `mocktail`, `flutter_lints` | Unit, widget, and integration tests |
 
-`LocalDatabase` owns one SQLite connection on a long-lived worker isolate.
-It serializes commands, enables WAL/foreign keys, and versions the schema
-using `PRAGMA user_version`. Entries keep their complete JSON plus a UTC
-ordering key and source hash. FTS5 mirrors searchable content. `vec0` stores
-512-dimensional cosine embeddings linked through chunk IDs to entries.
+Pinned native dependencies must remain pinned unless a deliberate upgrade is validated across Android, iOS, and macOS. Do not add a second state-management, dependency-injection, routing, or database package.
 
-Note, FTS, and index invalidation writes are transactional. AI updates compare
-their expected snapshot before saving, so edits or imports cannot be silently
-overwritten by a late response. Stream revisions discard stale snapshots.
-A content edit
-invalidates vectors; date-only edits do not. A deleted note cannot be
-resurrected by a late processing update. Index responses include a source
-hash so stale responses for edited/deleted notes are discarded. Model,
-dimensions, and indexed source hash are recorded separately from notes.
-Changing vector dimensions/model requires a schema/index migration and
-re-embedding, not comparing incompatible representations.
+## 3. Project layout
 
-Schema v2 stores the active embedding pipeline identity and generation. A new
-identity transactionally clears only derived vectors/chunks/index markers.
-Late writes must match both generation and source hash. Pipeline identity
-includes artifact hash, runtime, pooling, query prompt, dimension and chunking
-policy; equal dimensions alone do not make vector spaces compatible.
+```text
+app/
+  lib/
+    main.dart
+    application/              # App-wide orchestration
+      journal_lifecycle.dart
+    core/
+      di/                     # get_it + injectable setup
+      l10n/                   # ARB and generated localizations
+      routes/                 # auto_route definitions and guards
+      theme/                  # tokens, theme, system bars, insets
+      utils/                  # shared logging and helpers
+    data/
+      datasources/local/      # SQLite, files, settings
+      services/               # AI, downloads, search, archives, auth
+    domain/
+      entities/               # Immutable models, enums, failures
+      services/               # Interfaces
+      use_cases/              # Cross-service workflows
+    presentation/
+      app_store.dart          # App lock and onboarding state
+      screens/<feature>/      # Screen + feature store
+      stores/                 # Shared stores
+      widgets/                # Reusable widgets
+  test/                       # Unit and widget tests, mirroring lib/
+  integration_test/           # Opt-in platform and real-model tests
+  tool/                       # Development probes and reference tools
+```
 
-Indexing chunks source text into overlapping tokenizer-bounded segments. Embeddings
-are derived data, excluded from backups, and regenerated on request. Query
-embeddings have a bounded in-memory cache. The engine performs exact native
-KNN, not HNSW/ANN. Both search modes are offline; semantic queries are explicit
-on-device submissions. Pending/failed counts expose incomplete results. Search result ID filtering ensures removed notes are not
-shown from an earlier result set.
+Group files by feature, not by layer, inside `presentation/screens`. Keep one screen and one store per feature folder when the store is screen-scoped. Put shared widgets in `presentation/widgets` and shared stores in `presentation/stores`.
 
-Audio is stored under the documents audio directory. Database references for
-app-owned recordings are relative and resolved by the persistence adapter.
-Settings remain in shared_preferences. First-run onboarding explains recording
-and privacy, asks for audio language, requires speech and embedding model
-downloads, and offers an optional formatting-model step between them. Completion
-is persisted only after the active speech model and embedding model are verified;
-formatting is never a completion condition. The route guard checks the optional
-local lock first, then onboarding readiness. Previously completed installations
-jump to the first missing required model and may browse existing notes while
-setup remains incomplete; repair mode skips the optional formatting step.
-Android automatic backup/transfer rules exclude all app data and credentials.
-On iOS, each downloaded model directory and verified model file is marked
-excluded from iCloud Backup. macOS has no iCloud container or app-managed
-backup exclusion; user-managed system backups can include Application Support.
-macOS uses the same interface set: the `record`/`file_picker`/`local_auth`
-plugins and the bundled sqlite-vec asset have desktop implementations. The
-macOS build is unsigned (ad-hoc). No credential adapter or API-key UI remains.
-Deletion-only startup cleanup removes the former preference and mobile secure
-entry independently, retrying unavailable stores on later launches. The secure
-storage plugin remains solely for that migration; HTTP remains for downloads.
+## 4. Layering and dependency rules
 
-## AI and recovery
+- `domain/` is pure Dart. It must not import Flutter, `data/`, `presentation/`, `application/`, or platform packages.
+- `data/` implements domain interfaces and may use Flutter, platform channels, SQLite, HTTP, and native AI packages.
+- `application/` coordinates long-lived work such as recovery and background indexing. It depends on domain interfaces and small platform-facing adapters; it must not depend on widgets or on concrete persistence or AI implementations.
+- `presentation/` depends on domain models, domain interfaces, use cases, and application coordinators. It must not depend on concrete data implementations.
+- `core/` provides shared infrastructure. It must not contain feature business logic.
+- `main.dart` is the composition root. It wires dependencies, initializes app-level state, and starts the UI.
+- Widgets render state and forward user intent to stores. Widgets must not call data services directly, run SQL, manage model downloads, or contain business rules.
+- Stores own presentation state and orchestrate calls to domain services and use cases. They never build widgets.
+- Use cases coordinate more than one service or enforce an application rule. Keep single-service operations in that service.
+- No circular dependencies. Dependencies point inward: presentation → application/domain; application → domain and platform-facing adapters; data → domain; domain → nothing.
+- All SQL writes go through `LocalDatabase`. A read-only SQLite snapshot may be opened for backup export; no other code opens the database directly.
 
-Onboarding requires one verified, language-compatible active Whisper model and
-Qwen3-Embedding-0.6B Q8_0 before completion. Speech setup supports any subset of
-six pinned artifacts; tapping an installed compatible row selects the active
-model. Formatting is optional: the catalog offers Qwen3 0.6B Q8 and 1.7B Q4_K_M,
-and the active model is explicit. Downloads support progress,
-cancellation, partial resume, and SHA-256 validation before atomic publication.
-A missing/corrupt active speech model or required embedding model requires
-repair; an absent optional speech or formatting model does not.
-Model artifacts live separately from journal data and are not in journal exports.
-Android excludes them with all app data; iOS explicitly excludes them from
-iCloud Backup. See the backup limitations below for macOS.
+## 5. Dependency injection
 
-`ISpeechModelService` owns catalog readiness, per-artifact download workers,
-active selection, and deletion. Download requests are queued sequentially; files
-are not loaded into inference memory. Model/language configuration is one JSON
-preference write, with legacy Base and audio-language fallbacks. Activating and
-deleting weights use the shared inference queue, so a job snapshots a stable
-model/path/language and releases native memory before files can be removed.
-Settings and onboarding share `SpeechModelsStore` and the compact model-row list;
-the active row is outlined in place and the list order stays stable.
+Use `get_it` as the container and `injectable` for registration.
 
-`IFormattingModelService` mirrors the speech catalog surface: pinned readiness
-and hashes, per-model download workers, explicit activation, active-model
-deletion protection, and a persisted model ID. `FormattingModelsStore` and
-`FormattingModelCatalog` are shared by the optional onboarding step and
-Settings. The recommendation uses the same local device profile as speech but
-has only light and balanced tiers. AI organization opens the action sheet
-immediately and checks readiness inside it, showing preparing, actions-ready, or
-a model-needed state with a direct path to the formatting-model screen. The
-formatting service maps a missing artifact to a formatting-specific failure,
-never the embedding-model message. Activation and removal share the inference
-queue. See [ADR-022](adr/022-selectable-formatting-model-catalog.md) and
-[ADR-023](adr/023-keep-model-verification-off-the-interaction-path.md).
+- `lib/core/di/injection.dart` exposes `getIt` and `configureDependencies()`.
+- `lib/core/di/injection.config.dart` is generated. Never edit it.
+- `lib/core/di/register_module.dart` registers third-party types such as `AudioRecorder`, `http.Client`, `LocalAuthentication`, and `SharedPreferences`.
+- Feature services are registered as lazy singletons behind an interface:
+  `@LazySingleton(as: IJournalEntryService)`. Infrastructure objects without a
+  domain interface, such as the database, inference queue, and lifecycle
+  coordinator, may be concrete lazy singletons.
+- App-wide stateful objects are `@singleton` or `@lazySingleton`.
+- Screen-scoped stores are `@injectable` and receive their dependencies through the constructor.
+- Async initialization uses `@preResolve` only for dependencies that must exist before the first frame.
+- Use constructor injection. Do not resolve dependencies inside domain classes, stores, or widgets with `getIt`. Framework entry points such as the composition root, route guards, and constructors with testable overrides may use it.
+- Dispose resources with `@disposeMethod` or the generator's dispose callback. Cancel streams, timers, and subscriptions.
 
-Recommendations use a pure language-filtered hardware policy and a small local
-platform channel for physical RAM, low-memory status, ABI/CPU information, and
-separate free-storage checks. Policy v1 is intentionally conservative: unknown
-profiles favor Base, qualified 64-bit/memory profiles favor Small or Small.en,
-and high-end recommendations require measured SoC qualification. No GPU/NPU,
-remote device profiling, benchmark requirement, or silent active-model switching.
-See [ADR-021](adr/021-local-speech-model-catalog.md).
+Example service registration:
 
-Recording no longer checks for an API key. `ITranscriptionService` runs only
-local whisper.cpp via the pinned MIT `whisper_ggml` binding on Android/iOS/macOS;
-`INoteProcessingService` delegates transcription locally and formats text with
-Qwen via llama.cpp (`llamadart` 0.11.1). Local Qwen embeddings reuse that runtime.
-ADR-019 records the journal storage choice; ADRs 020–022 record the local AI
-choices. There is no cloud adapter, credential requirement, or online fallback.
+```dart
+@LazySingleton(as: IJournalEntryService)
+class SqliteJournalEntryService implements IJournalEntryService {
+  SqliteJournalEntryService(this._database);
 
-The original recording is retained and decoded at normal speed to 16 kHz mono
-PCM, with unique owned temporary files and cleanup on success/failure. Inference
-is serialized across entries, runs in worker isolates, and frees model memory
-after each request. Automatic language detection remains the default, with an
-explicit language override. The Apple binding rejects `auto`, so a direct
-whisper.cpp language-detection pre-pass uses at most the first 30 seconds and
-frees its context before transcription loads another; Android uses native auto.
-English-only weights require explicit English and bypass language detection.
-Transcription is persisted before local formatting. All three AI services share one
-inference queue. Whisper frees its context before releasing the lease; Qwen
-loads a fresh session and awaits native disposal before the next job starts.
-Native inference runs outside the UI isolate, CPU-only with four threads.
-Qwen uses non-thinking generation, a strict three-field JSON schema, and the
-selected one of six presentation styles. The exact source stays separate from
-generated content. Its 4,096-token context includes the fully templated input,
-1,536 reserved output tokens and 64 safety tokens. Oversized input is rejected,
-never silently truncated. Incomplete or malformed output is not saved.
-Failures retain the recording and transcription; retry reuses that text instead
-of transcribing again. Valid JSON does not guarantee factual fidelity; physical
-device performance and broader multilingual quality still need evaluation.
-Entry processing status survives app restart. `main` starts the singleton
-`JournalLifecycle` after dependency/settings initialization, without awaiting
-background work or depending on any screen. Its orchestration path is:
+  final LocalDatabase _database;
+  // ...
+}
+```
+
+Example store registration:
+
+```dart
+@injectable
+class EntryEditStore = _EntryEditStore with _$EntryEditStore;
+```
+
+## 6. MobX state
+
+All application and feature state is exposed through MobX stores. Domain models stay immutable; do not decorate them with MobX annotations.
+
+### Store shape
+
+```dart
+@singleton
+class HomeStore = _HomeStore with _$HomeStore;
+
+abstract class _HomeStore with Store {
+  _HomeStore(this._journal, this._lifecycle);
+
+  final IJournalEntryService _journal;
+  final JournalLifecycle _lifecycle;
+
+  @observable
+  bool isLoading = true;
+
+  @observable
+  String? errorCode;
+
+  @observable
+  ObservableList<JournalEntry> entries = ObservableList();
+
+  @computed
+  bool get isEmpty => !isLoading && entries.isEmpty;
+
+  @action
+  Future<void> load() async {
+    if (isLoading) return;
+    isLoading = true;
+    errorCode = null;
+    try {
+      final snapshot = await _journal.watchAll().first;
+      runInAction(() => entries.replaceAll(snapshot));
+    } catch (_) {
+      runInAction(() => errorCode = 'loadFailed');
+    } finally {
+      runInAction(() => isLoading = false);
+    }
+  }
+}
+```
+
+Rules:
+
+- Mark stored state `@observable`; keep fields private when they are implementation details.
+- Derive view state with `@computed` instead of duplicating it in widgets.
+- Mutate state in `@action` methods. Use `runInAction` for mutations after an `await`.
+- Guard reentrant async actions with a busy flag. Return a result when the caller must know whether the action succeeded.
+- Store a stable failure code, not a localized message. Presentation maps codes to localized text.
+- Expose streams through stores; do not expose raw service streams to widgets.
+- Cancel stream subscriptions, timers, and reactions in `dispose` or `@disposeMethod`.
+- Use `Observer` around the smallest widget subtree that reads observables. Do not wrap whole screens when a smaller region is enough.
+- A widget may keep ephemeral local UI state (scroll position, text controller, expansion) in a `StatefulWidget`. App state belongs in a store.
+- App-wide stores are `AppStore`, `HomeStore`, the settings stores, and the shared model stores. `HomeStore` is app-wide because the home route owns the shared journal feed. Screen-scoped stores (`EntryDetailStore`, `EntryEditStore`, `OnboardingStore`) are injected into their screen.
+- Stores may depend on other stores only when the dependency is part of the same feature; otherwise depend on a service or use case.
+
+## 7. Navigation
+
+Use `auto_route` exclusively.
+
+- The router is `AppRouter` in `lib/core/routes/app_route.dart`, annotated with `@AutoRouterConfig()`.
+- Screens are annotated with `@RoutePage()`.
+- Add each screen to `AppRouter.routes`.
+- Generated routes live in `app_route.gr.dart`; never edit that file.
+- Use `context.pushRoute(...)`, `context.replaceRoute(...)`, and `context.maybePop()`. Do not use raw `Navigator.push` with `MaterialPageRoute`.
+- Journal routes are protected by `LocalLockGuard`. The guard checks the optional local lock first, then onboarding completion. Unlocking redirects to the lock screen; incomplete onboarding redirects to onboarding.
+- When adding a route, run the route generator and verify the guard is applied where journal data is reachable.
+
+```dart
+@RoutePage()
+class EntryDetailScreen extends StatelessWidget {
+  const EntryDetailScreen({super.key, required this.entryId});
+
+  final String entryId;
+  // ...
+}
+```
+
+```dart
+AutoRoute(page: EntryDetailRoute.page, guards: [LocalLockGuard()]),
+```
+
+## 8. Domain models
+
+- Domain entities are immutable. Prefer Freezed for entities, value objects, and unions.
+- Use `json_serializable` for models stored in SQLite or exported in backups.
+- Keep storage annotations out of domain models; serialization annotations are acceptable when JSON is part of the domain contract.
+- Use `copyWith`, value equality, and explicit constructors. Do not mutate fields after construction.
+- Use enums for finite states such as entry status and AI action. Use typed failure classes for errors (`AiFailure`, `EntryWriteFailure`, `ModelDownloadCancelled`).
+- `JournalEntry` carries immutable audit timestamps (`createdAt`, `updatedAt`) and a user-editable `entryDate`. Ordering and grouping use `effectiveEntryDate`, which falls back to `createdAt` when `entryDate` is absent.
+- `JournalEntry.body` returns the accepted formatted note when present; otherwise it returns the original transcription. An intentionally empty formatted note must not reveal the original transcription.
+- Writes that can race with edits, imports, or deletion must compare an expected snapshot and reject stale updates.
+- Do not put Flutter widgets, platform channels, or database objects in domain entities.
+
+## 9. Persistence and search
+
+`LocalDatabase` is the only component that opens the journal database for writes. It owns one long-lived SQLite connection on a worker isolate. No SQL runs on the UI isolate.
+
+- Enable WAL, foreign keys, and a busy timeout. Version the schema with `PRAGMA user_version`.
+- Store each entry as complete JSON plus a UTC ordering key and source hash.
+- Mirror searchable text in FTS5.
+- Store 512-dimensional cosine embeddings in a `vec0` table linked to chunks and entries.
+- Record the active embedding pipeline identity and generation separately from notes. A new identity clears only derived data.
+- Store failed index sources against their source hash. Retry them only on an explicit user action.
+- Stage imports in batches of 25 and publish them atomically on a separate WAL connection. Readers continue to see the previous committed journal until publication completes.
+- Export from an independent read-only WAL snapshot. Stream already-compressed audio into a disk-backed ZIP and avoid retaining all audio in memory.
+- Keep one application writer. Do not open multiple write connections to the same database.
+- Resolve app-owned audio paths relative to the documents `audio/` directory. Delete an entry's audio only after the entry deletion succeeds.
+- Store settings in `shared_preferences`. Keep model artifacts under the application support directory, outside the journal database and journal exports.
+- Use `watchAll` for the shared journal feed, ID-scoped changes for ordinary writes, and full reconciliation after import. Discard stale snapshots by revision.
+- Invalidate vectors on content changes, not on date-only changes. A deleted entry must not be resurrected by a late processing update.
+- Changing the embedding model, dimensions, pooling, prompt, chunking, or quantization requires a new pipeline identity and re-embedding. Never compare vectors from different identities.
+
+Search:
+
+- Text search uses FTS5 and returns ranked results across all entry dates.
+- Semantic search embeds the query on device, runs exact KNN, filters chunks beyond the calibrated distance cutoff, groups by entry, and returns ranked entries.
+- Keep a bounded in-memory query-vector cache. Include pipeline identity and index generation in the cache key.
+- Semantic queries are explicit submissions; do not run them on every keystroke.
+- Pending and failed index counts must be visible when results are incomplete. Fall back to text search when the model is missing or corrupt.
+- When an entry is deleted or edited during a search, resolve results against current entries and never show a removed entry from an older result set.
+
+## 10. Local AI
+
+### Model catalogs
+
+Every model is a pinned artifact with an ID, file name, download URL, byte size, and SHA-256. Catalogs are typed domain entities.
+
+- Speech: six Whisper artifacts, including English-only and multilingual options.
+- Formatting: two Qwen3 artifacts, one light and one balanced.
+- Embeddings: Qwen3-Embedding 0.6B Q8.
+
+Never download from an unpinned `main` revision. Never switch the active model silently. The active model and the audio language are explicit, persisted choices. An English-only speech model can be active only for explicit English.
+
+### Installation and verification
+
+- `LocalModelDownload` owns progress, cancellation, resume, storage preflight, atomic promotion, and SHA-256 validation.
+- Android and iOS delegate to the platform downloader; desktop uses the Dart streaming path.
+- `ModelVerification` persists a versioned receipt containing model ID, file name, digest, size, and modification time. Reuse a receipt only when the stat and catalog metadata match.
+- Verify the full artifact after an interrupted download or a changed file. A cached stat match avoids rehashing readable, unchanged files.
+- Model artifacts are excluded from journal exports and from platform backups as supported by each OS.
+
+### Inference
+
+- `LocalInferenceQueue` serializes all native inference. One job at a time.
+- Foreground work (capture, transcription, formatting, user-submitted search) precedes background indexing. Run at most eight foreground jobs before yielding to background work.
+- Jobs must release native memory before releasing the queue lease. A cancelled queued job is skipped before acquiring native resources; a running job must check cancellation at safe boundaries.
+- Run native inference off the UI isolate. Use CPU-only inference. Llama.cpp sessions use four threads; the speech binding stays on its CPU path. Do not add a GPU/NPU backend without deliberate validation.
+
+Speech:
+
+- Use `whisper_ggml`. Decode audio to 16 kHz mono PCM at original speed.
+- Select the model by explicit file path, not only by enum. Keep the model loaded only for one job.
+- Automatic language detection is the default. On Apple platforms, run the app-owned whisper.cpp language-detection pre-pass on at most the first 30 seconds, then free that context before loading the transcription model. Android may use native `auto`.
+- English-only models require explicit English and bypass language detection.
+
+Formatting:
+
+- Use `llamadart` with the Qwen chat template and thinking disabled.
+- The context budget is 4,096 tokens: 1,536 reserved output tokens and 64 safety tokens. Reject oversized input; never silently truncate or summarize.
+- Return JSON with exactly the required string fields. Reject malformed, incomplete, or empty output.
+- Generate an unsaved preview first. Persist only after explicit acceptance. Preserve the recording, original transcription, entry date, and creation timestamp.
+- A missing or corrupt formatting model maps to a formatting-specific failure, not the embedding-model message.
+- Keep the action enum, prompt mapping, localization, and action sheet in sync.
+
+Embeddings:
+
+- Use raw text, not a chat template. Queries alone receive the retrieval instruction.
+- Use Qwen3-Embedding with last-token pooling. Validate 1,024 native dimensions, slice to 512, then L2-normalize.
+- Chunk documents with real tokenizer counts: 384 tokens per chunk, up to 64 tokens of overlap, within a 1,024-token context.
+- Index title, current note, and original transcription, omitting empty parts and exact trimmed duplicates.
+- Index in bounded batches, releasing the native session after four chunks so interactive work can take the queue.
+- Use the calibrated absolute distance cutoff for semantic matches. Do not make the cutoff relative to the best hit.
+- An embedding failure must not change a successful entry's status or block text search.
+
+### Application orchestration
+
+`JournalLifecycle` owns recovery and automatic indexing. It is started once after the first frame and never depends on a screen.
 
 - Subscribe to embedding readiness changes before watching journal entries.
-- On the first journal snapshot, recover only interrupted `processing` entries,
-  sequentially and once per application lifetime. Failed recordings remain manual.
-- On every journal snapshot (including edits/imports), request pending indexing.
-- After a verified embedding download/repair, request pending indexing even if
-  no entry changed and Settings was never opened. Each pass checks readiness;
-  absent weights leave derived work pending.
+- On the first journal snapshot, recover interrupted `processing` entries sequentially, once per application lifetime. Leave failed entries for explicit retry.
+- On every journal snapshot, request pending indexing.
+- After a verified embedding download or repair, request pending indexing even when no entry changed.
+- Coalesce index triggers into one drain with a follow-up pass for changes received during indexing.
+- Log background failures without blocking the UI. Never retry failed index sources automatically; only an explicit user action retries them.
+- Share one `processEntry` path for capture, startup recovery, and explicit recording retries. Keep a per-entry in-flight guard.
+- On failure, retain the original audio and transcription, persist an error status, and do not overwrite a concurrent edit.
 
-Index triggers coalesce into one drain, retaining a follow-up pass for changes
-received during indexing. Background errors are logged, never block the UI, and
-never enable retries of failed index sources. Explicit Settings commands still
-retry failed sources or rebuild through `IEntrySearchService`, which serializes
-indexing. Capture, startup recovery, and explicit recording retries share
-`JournalLifecycle.processEntry` and its per-entry in-flight guard; the existing
-use-case exclusivity and single native inference queue remain unchanged. Recovery
-failures retain original audio/transcription and persist an error status, except
-when another use-case job reports `busy`.
+## 11. Application lifecycle
 
-Home only renders journal snapshots and issues user commands. Settings loading
-only observes readiness/index status; its recording-retry command reads current
-storage through the coordinator instead of a Home snapshot. DI disposal cancels
-the coordinator's subscriptions and drains in-flight work. Work is in-process,
-not an OS background scheduler. The screen-owned recovery described historically
-in ADR-012 is replaced by this application boundary (issue #81).
+`main` follows this order:
 
-Embedding input is raw text, never a chat template: queries alone have the
-retrieval instruction. Validate Qwen architecture and LAST pooling metadata,
-require 1024 native dimensions, slice to 512 and normalize. Real tokenizer
-counts bound chunks to 384 tokens with up to 64-token overlap in a 1024-token
-context. Oversized queries fail explicitly. Indexing yields after four chunks,
-disposing the model before interactive STT/formatting/search can take the lease.
-Bounded queue fairness prevents backlog starvation. Failed notes do not block
-other entries; missing weights leave entries pending until model repair.
-Embedding failures do not change successful note status or block text search.
+1. Initialize Flutter bindings and register bundled model licenses.
+2. Configure edge-to-edge system UI.
+3. Call `configureDependencies()`.
+4. Initialize `AppStore` from local settings. This reads the lock flag and onboarding completion only; it must not read model files.
+5. Load `SettingsStore`; a failure must not block the first frame.
+6. Call `runApp`.
+7. In the first post-frame callback, allow deferred model verification, start processing feedback, check model readiness, and start `JournalLifecycle`.
 
-## Backup and limitations
+Model checks and journal recovery must never delay route protection or the first frame. Route protection uses the persisted lock and onboarding flags, not model availability.
 
-ZIP backup version 1 stores a journal manifest and available original audio.
-Import validates the manifest and audio references before writing, generates
-safe local filenames, and commits entry records atomically. Matching IDs are
-replaced. Failed database imports clean up newly written audio files. ZIP
-paths are never extracted verbatim. Backup limits bound compressed and
-expanded size; compression/decompression runs outside the UI isolate.
+## 12. Presentation
 
-No app-level encryption, cloud sync, background OS scheduler, or account
-management is provided. Processing runs while the app is alive and resumes
-interrupted work at startup. Repeated import can leave superseded audio files
-on disk; file maintenance is a future improvement. Failed indexing is recorded
-against its source hash and excluded from automatic processing; the Settings
-retry action includes those failures. Benchmarks and multilingual retrieval
-quality still need representative-device/content evaluation.
+- One screen file and one store file per feature when the store is screen-scoped.
+- Screens are thin: build layout, bind stores with `Observer`, and forward intent.
+- Use shared widgets for model catalogs, download rows, entry content, players, and common controls.
+- Use Material 3 and the theme layer (`lib/core/theme`) for colors, typography, spacing, shapes, system bars, and insets. Do not hardcode colors, font families, or arbitrary sizes in widgets.
+- Use bundled Archivo for UI text and Archivo Black for display headings. Widgets select `TextTheme` roles.
+- All user-facing text must live in `lib/core/l10n/app_en.arb` and be accessed through `AppLocalizations`. Do not display raw store messages; map stable failure codes through a presentation mapper.
+- Use 48dp minimum touch targets, safe-area insets, bounded reading columns, and reduced-motion handling.
+- Use `ThemeMode.system` for light and dark themes. Visual hierarchy relies on whitespace and tonal surfaces; elevation and shadows remain at zero.
+- Keep model download rows consistent between onboarding and settings: name, size, progress, cancel, resume, retry, verify, delete, and active state.
+- For destructive or irreversible actions, confirm first and keep the saved state unchanged on failure.
+- Use `auto_route` transitions. Do not introduce a second navigation system.
+- Keep the capture action dominant. UI chrome must not compete with the journal content.
+
+## 13. Testing
+
+- Put unit and widget tests in `app/test/`, mirroring `lib/` paths.
+- Put platform and real-model tests in `app/integration_test/`.
+- Use `mocktail` for interfaces and small fakes for streams and platform channels.
+- Test stores by calling actions and asserting observables, computed values, and emitted states.
+- Test services at their interface boundary. Test persistence migrations against a temporary database.
+- Do not download real models in unit tests. Use small fixtures and injected clients.
+- Real-model and device tests are opt-in. Use a separate application ID or test install; device tests may uninstall the app and erase data.
+- Run `flutter analyze` and `flutter test` before every change. Add tests for behavior changes, failure paths, and concurrency guards.
+
+## 14. Code generation
+
+Run generation after changing models, stores, DI, routes, or localization:
+
+```sh
+cd app
+dart run build_runner build --delete-conflicting-outputs
+flutter gen-l10n
+```
+
+Generated files include `*.freezed.dart`, `*.g.dart`, `injection.config.dart`, `app_route.gr.dart`, and localization output. Generated files are checked in but must never be edited manually. Re-run the generator after changing the source annotation or ARB file.
+
+## 15. Error handling
+
+- Use typed failures, not raw exceptions, at service boundaries.
+- Stores must expose stable failure codes. Presentation maps codes to localized messages.
+- Never log journal text, recordings, queries, embeddings, filesystem paths, or credentials.
+- Expected-entry checks protect writes against edits, imports, and deletion. A stale operation must fail cleanly, not overwrite newer data.
+- Do not silently truncate input, skip model verification, switch models, or fall back to a cloud service.
+- If a model is missing or corrupt, leave saved data intact and offer a repair path.
+- Background failures are logged without blocking the UI and are retried only through explicit user actions.
+
+## 16. Privacy and security
+
+- Keep all journal content on the device. Do not add a backend, account, sync, analytics, crash-reporting service, or remote AI call.
+- Do not add an API-key flow or credential storage. Model downloads use public, pinned URLs.
+- Verify model artifacts with SHA-256 before use. Do not trust a download merely because it completed.
+- App lock is a UI gate. It does not encrypt the database, recordings, or exports.
+- Android backup and data transfer are disabled. iOS excludes model files from iCloud Backup. macOS backups are user-managed.
+- Journal exports are readable ZIP files. Validate archive paths and sizes before writing; never extract archive paths verbatim.
+- Keep model artifacts and derived search data out of journal exports.
+- Treat model weights, prompts, and downloaded files as replaceable data, not journal data.
+
+## 17. Conventions
+
+- Use `snake_case.dart` files, `PascalCase` types, and `camelCase` members.
+- Name interfaces `I...`, services `...Service`, stores `...Store`, screens `...Screen`, repositories `...Repository`, and use cases `...UseCase`.
+- Keep imports package-qualified (`package:smartnotes/...`) across layers.
+- Keep files focused. Extract a widget when a build method grows or when the same composition is reused.
+- Comments explain intent, constraints, and non-obvious decisions, not syntax.
+- Prefer the existing stack. Do not add a new state, DI, routing, database, or AI runtime package without a concrete need and platform validation.
+- Keep the dependency graph acyclic. Run `flutter analyze` after moving code between layers.
+- Preserve generated code and run generators instead of editing output.
+
+## 18. Change checklist
+
+1. Define or extend the domain entity, enum, failure, or service interface.
+2. Implement the behavior in `data/` or in a use case; keep SQL in `LocalDatabase`.
+3. Register the implementation with `injectable` and the correct lifetime.
+4. Add or extend a MobX store. Use observables, computed values, actions, and stable failure codes.
+5. Build the screen with `Observer`, theme tokens, localized strings, and accessibility defaults.
+6. Add or update unit, widget, and integration tests.
+7. Run code generation, `flutter analyze`, and `flutter test`.
+8. Verify that no journal content, path, or credential reached logs, errors, or backups.

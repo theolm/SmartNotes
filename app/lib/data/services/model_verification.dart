@@ -145,7 +145,7 @@ class ModelVerification {
       state = ModelCheckState.ready;
       return true;
     }
-    // ADR-023's legacy formatting record has no version or artifact fields.
+    // Legacy formatting records have no version or artifact fields.
     Map<String, dynamic>? legacy;
     try {
       legacy = _decode(legacySignature?.call());
