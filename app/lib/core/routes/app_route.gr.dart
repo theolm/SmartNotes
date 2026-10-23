@@ -16,7 +16,8 @@ import 'package:smartnotes/presentation/screens/entry_detail/entry_detail_screen
     as _i2;
 import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_screen.dart'
     as _i3;
-import 'package:smartnotes/presentation/screens/home/home_screen.dart' as _i5;
+import 'package:smartnotes/presentation/screens/home/journal_workspace_screen.dart'
+    as _i5;
 import 'package:smartnotes/presentation/screens/lock/lock_screen.dart' as _i6;
 import 'package:smartnotes/presentation/screens/onboarding/onboarding_screen.dart'
     as _i7;
@@ -156,7 +157,23 @@ class FormattingModelsRoute extends _i10.PageRouteInfo<void> {
 }
 
 /// generated route for
-/// [_i5.HomeScreen]
+/// [_i5.JournalEmptyScreen]
+class JournalEmptyRoute extends _i10.PageRouteInfo<void> {
+  const JournalEmptyRoute({List<_i10.PageRouteInfo>? children})
+    : super(JournalEmptyRoute.name, initialChildren: children);
+
+  static const String name = 'JournalEmptyRoute';
+
+  static _i10.PageInfo page = _i10.PageInfo(
+    name,
+    builder: (data) {
+      return const _i5.JournalEmptyScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [_i5.JournalWorkspaceScreen]
 class HomeRoute extends _i10.PageRouteInfo<void> {
   const HomeRoute({List<_i10.PageRouteInfo>? children})
     : super(HomeRoute.name, initialChildren: children);
@@ -166,7 +183,7 @@ class HomeRoute extends _i10.PageRouteInfo<void> {
   static _i10.PageInfo page = _i10.PageInfo(
     name,
     builder: (data) {
-      return const _i5.HomeScreen();
+      return const _i5.JournalWorkspaceScreen();
     },
   );
 }

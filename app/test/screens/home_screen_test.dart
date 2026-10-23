@@ -16,6 +16,7 @@ import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/presentation/screens/home/home_screen.dart';
+import 'package:smartnotes/presentation/screens/home/widgets/journal_capture.dart';
 import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/timeline_item.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/day_header.dart';
@@ -55,25 +56,39 @@ class _Search extends MemorySearch {
       super.searchSemantic(query, isCancelled: isCancelled, options: options);
 }
 
-class _TestableHomeScreen extends StatelessWidget {
+class _TestableHomeScreen extends StatefulWidget {
   const _TestableHomeScreen({required this.store, this.router});
 
   final HomeStore store;
   final StackRouter? router;
 
   @override
+  State<_TestableHomeScreen> createState() => _TestableHomeScreenState();
+}
+
+class _TestableHomeScreenState extends State<_TestableHomeScreen> {
+  bool _isSearching = false;
+
+  @override
   Widget build(BuildContext context) {
+    final feed = HomeScreen(
+      onSearchModeChanged: (value) => setState(() => _isSearching = value),
+    );
     return MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: withNavBarInset(
-        router == null
-            ? const HomeScreen()
-            : StackRouterScope(
-                controller: router!,
-                stateHash: 0,
-                child: const HomeScreen(),
-              ),
+        JournalCapture(
+          store: widget.store,
+          showAction: !_isSearching,
+          child: widget.router == null
+              ? feed
+              : StackRouterScope(
+                  controller: widget.router!,
+                  stateHash: 0,
+                  child: feed,
+                ),
+        ),
       ),
     );
   }
@@ -813,11 +828,9 @@ void main() {
 
     expect(store.isRecording, isTrue);
 
-    final overlay = find.byWidgetPredicate(
-      (widget) =>
-          widget is Container && widget.color != null && widget.color!.a == 0.3,
-    );
+    final overlay = find.byKey(const ValueKey('recording-barrier'));
     expect(overlay, findsOneWidget);
+    expect(tester.widget<ModalBarrier>(overlay).dismissible, isFalse);
 
     await tester.tap(find.byIcon(Icons.search), warnIfMissed: false);
     await tester.pump();
@@ -827,14 +840,6 @@ void main() {
     await store.stopRecording();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.color != null &&
-            widget.color!.a == 0.3,
-      ),
-      findsNothing,
-    );
+    expect(overlay, findsNothing);
   });
 }

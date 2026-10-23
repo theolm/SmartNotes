@@ -22,6 +22,8 @@ class TimelineItem extends StatelessWidget {
     this.feedback,
     this.showDate = false,
     this.searchResult,
+    this.onOpen,
+    this.selected = false,
   });
 
   final JournalEntry entry;
@@ -30,6 +32,8 @@ class TimelineItem extends StatelessWidget {
   final ProcessingFeedback? feedback;
   final bool showDate;
   final SearchResult? searchResult;
+  final VoidCallback? onOpen;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,7 @@ class TimelineItem extends StatelessWidget {
         : null;
     final preview = subtitle ?? entry.body;
 
-    return Slidable(
+    final content = Slidable(
       key: ValueKey(entry.id),
       endActionPane: onDelete == null
           ? null
@@ -75,8 +79,12 @@ class TimelineItem extends StatelessWidget {
                 context,
                 onRetry: onRetry,
               )
-            : () => context.pushRoute(EntryDetailRoute(entryId: entry.id)),
+            : onOpen ??
+                  () => context.pushRoute(EntryDetailRoute(entryId: entry.id)),
         child: Container(
+          color: selected
+              ? Theme.of(context).colorScheme.surfaceContainerHighest
+              : null,
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -168,6 +176,7 @@ class TimelineItem extends StatelessWidget {
         ),
       ),
     );
+    return Semantics(selected: selected ? true : null, child: content);
   }
 }
 

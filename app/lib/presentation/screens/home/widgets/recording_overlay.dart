@@ -10,6 +10,8 @@ class RecordingOverlay extends StatelessWidget {
     this.amplitude = 0,
     this.floatingActionButton,
     this.waveform,
+    this.floatingActionButtonLocation =
+        FloatingActionButtonLocation.centerFloat,
   });
 
   final bool isActive;
@@ -17,16 +19,27 @@ class RecordingOverlay extends StatelessWidget {
   final double amplitude;
   final Widget? floatingActionButton;
   final Widget? waveform;
+  final FloatingActionButtonLocation floatingActionButtonLocation;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Content panes already consume their own local keyboard insets.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          child,
+          ExcludeFocus(
+            excluding: isActive,
+            child: ExcludeSemantics(
+              excluding: isActive,
+              child: IgnorePointer(ignoring: isActive, child: child),
+            ),
+          ),
           if (isActive) ...[
             Positioned.fill(
-              child: Container(
+              child: ModalBarrier(
+                key: const ValueKey('recording-barrier'),
+                dismissible: false,
                 color: Theme.of(
                   context,
                 ).colorScheme.onSurface.withValues(alpha: 0.3),
@@ -43,7 +56,10 @@ class RecordingOverlay extends StatelessWidget {
           ],
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: floatingActionButtonLocation,
+      // RecordFab owns the reduced-motion-aware transition. Do not also move
+      // its anchor when the Stop label changes width or panes are rearranged.
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       floatingActionButton: floatingActionButton,
     );
   }

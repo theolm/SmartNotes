@@ -13,16 +13,15 @@ import 'package:smartnotes/domain/entities/model_check_state.dart';
 import 'package:smartnotes/presentation/ai_error_message.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/journal_timeline.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/empty_state.dart';
-import 'package:smartnotes/presentation/screens/home/widgets/record_fab.dart';
-import 'package:smartnotes/presentation/screens/home/widgets/recording_overlay.dart';
-import 'package:smartnotes/presentation/screens/home/widgets/sound_waveform.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/unified_search_controls.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/timeline_item.dart';
 import 'package:smartnotes/domain/entities/processing_feedback.dart';
+import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dart';
 
-@RoutePage()
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onSearchModeChanged});
+
+  final ValueChanged<bool>? onSearchModeChanged;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -47,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSearching = true;
     });
     _searchFocusNode.requestFocus();
+    widget.onSearchModeChanged?.call(true);
   }
 
   void _stopSearch() {
@@ -56,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isSearching = false;
     });
+    widget.onSearchModeChanged?.call(false);
   }
 
   void _clearQuery() {
@@ -67,10 +68,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _search() {
     _searchFocusNode.unfocus();
     _homeStore.runSearch();
-  }
-
-  Future<void> _toggleRecording() async {
-    await _homeStore.toggleRecording();
   }
 
   Future<void> _confirmDelete(JournalEntry entry) async {
@@ -112,213 +109,199 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final hasOpenEntry =
+        JournalWorkspaceScope.maybeOf(context)?.selectedEntryId != null;
 
-    return Observer.withBuiltChild(
-      builder: (_, child) {
-        return RecordingOverlay(
-          isActive: _homeStore.isRecording,
-          waveform: Observer(
-            builder: (_) => SoundWaveform(amplitude: _homeStore.amplitude),
-          ),
-          floatingActionButton: RecordFab(
-            isVisible: !_isSearching,
-            isRecording: _homeStore.isRecording,
-            onPressed: _toggleRecording,
-          ),
-          child: child,
-        );
-      },
-      child: Observer(
-        builder: (_) => PopScope(
-          canPop: !_isSearching,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop && _isSearching) _stopSearch();
-          },
-          child: Scaffold(
-            appBar: AppBar(
-              titleSpacing: _isSearching ? 0 : null,
-              leading: _isSearching
-                  ? IconButton(
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).backButtonTooltip,
-                      onPressed: _stopSearch,
-                      icon: const Icon(Icons.arrow_back),
-                    )
-                  : null,
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              surfaceTintColor: Theme.of(context).colorScheme.surface,
-              title: _isSearching
-                  ? TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      autofocus: true,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: l10n.searchUnifiedFieldHint,
-                        suffixIcon: _homeStore.searchQuery.isNotEmpty
-                            ? IconButton(
-                                tooltip: l10n.searchClearQuery,
-                                onPressed: _clearQuery,
-                                icon: const Icon(Icons.close),
-                              )
-                            : null,
-                        hintStyle: Theme.of(context).textTheme.bodyLarge
-                            ?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                      textAlignVertical: TextAlignVertical.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      onChanged: _homeStore.submitSearch,
-                      onSubmitted: (_) => _search(),
-                    )
-                  : Text(
-                      l10n.journalTitle,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-              actions: [
-                if (_isSearching)
-                  IconButton(
-                    icon: const Icon(Icons.search),
-                    tooltip: l10n.search,
-                    onPressed: _homeStore.isSearchingMeaning ? null : _search,
-                  ),
-                if (!_isSearching) ...[
-                  IconButton(
-                    icon: const Icon(Icons.search),
-                    tooltip: l10n.search,
-                    onPressed: _startSearch,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined),
-                    tooltip: l10n.settingsTitle,
-                    onPressed: () async {
-                      await context.pushRoute(const SettingsRoute());
-                      await _appStore.checkModels();
-                    },
-                  ),
-                ],
-              ],
-            ),
-            body: Column(
-              children: [
-                Observer(
-                  builder: (_) => _homeStore.maintenanceProgress == null
-                      ? const SizedBox.shrink()
-                      : Semantics(
-                          label: l10n.journalMaintenance,
-                          liveRegion: true,
-                          child: LinearProgressIndicator(
-                            value: _homeStore.maintenanceProgress,
-                          ),
-                        ),
-                ),
-                if (_appStore.modelChecks.values.contains(
-                  ModelCheckState.checking,
-                ))
-                  Semantics(
-                    liveRegion: true,
-                    child: Column(
-                      children: [
-                        const LinearProgressIndicator(),
-                        Text(l10n.onboardingModelVerifying),
-                      ],
-                    ),
+    return Observer(
+      builder: (_) => PopScope(
+        canPop: !_isSearching || hasOpenEntry,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _isSearching && !hasOpenEntry) _stopSearch();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            titleSpacing: _isSearching ? 0 : null,
+            leading: _isSearching
+                ? IconButton(
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: _stopSearch,
+                    icon: const Icon(Icons.arrow_back),
                   )
-                else if (_appStore.modelChecks.values.any(
-                  (state) => state != ModelCheckState.ready,
-                ))
-                  MaterialBanner(
-                    content: Text(l10n.onboardingLoadFailed),
-                    actions: [
-                      TextButton(
-                        onPressed: _appStore.checkModels,
-                        child: Text(l10n.retry),
+                : null,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            surfaceTintColor: Theme.of(context).colorScheme.surface,
+            title: _isSearching
+                ? TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      hintText: l10n.searchUnifiedFieldHint,
+                      suffixIcon: _homeStore.searchQuery.isNotEmpty
+                          ? IconButton(
+                              tooltip: l10n.searchClearQuery,
+                              onPressed: _clearQuery,
+                              icon: const Icon(Icons.close),
+                            )
+                          : null,
+                      hintStyle: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    textAlignVertical: TextAlignVertical.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    onChanged: _homeStore.submitSearch,
+                    onSubmitted: (_) => _search(),
+                  )
+                : Text(
+                    l10n.journalTitle,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            actions: [
+              if (_isSearching)
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: l10n.search,
+                  onPressed: _homeStore.isSearchingMeaning ? null : _search,
+                ),
+              if (!_isSearching) ...[
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: l10n.search,
+                  onPressed: _startSearch,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: l10n.settingsTitle,
+                  onPressed: () async {
+                    await context.pushRoute(const SettingsRoute());
+                    await _appStore.checkModels();
+                  },
+                ),
+              ],
+            ],
+          ),
+          body: Column(
+            children: [
+              Observer(
+                builder: (_) => _homeStore.maintenanceProgress == null
+                    ? const SizedBox.shrink()
+                    : Semantics(
+                        label: l10n.journalMaintenance,
+                        liveRegion: true,
+                        child: LinearProgressIndicator(
+                          value: _homeStore.maintenanceProgress,
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () async {
-                          await context.pushRoute(const SettingsRoute());
-                          await _appStore.checkModels();
-                        },
-                        child: Text(l10n.modelSetup),
-                      ),
-                      TextButton(
-                        onPressed: _appStore.modelChecks.clear,
-                        child: Text(l10n.close),
-                      ),
+              ),
+              if (_appStore.modelChecks.values.contains(
+                ModelCheckState.checking,
+              ))
+                Semantics(
+                  liveRegion: true,
+                  child: Column(
+                    children: [
+                      const LinearProgressIndicator(),
+                      Text(l10n.onboardingModelVerifying),
                     ],
                   ),
-                Expanded(
-                  child: Observer(
-                    builder: (_) {
-                      if (_homeStore.isLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                )
+              else if (_appStore.modelChecks.values.any(
+                (state) => state != ModelCheckState.ready,
+              ))
+                MaterialBanner(
+                  content: Text(l10n.onboardingLoadFailed),
+                  actions: [
+                    TextButton(
+                      onPressed: _appStore.checkModels,
+                      child: Text(l10n.retry),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await context.pushRoute(const SettingsRoute());
+                        await _appStore.checkModels();
+                      },
+                      child: Text(l10n.modelSetup),
+                    ),
+                    TextButton(
+                      onPressed: _appStore.modelChecks.clear,
+                      child: Text(l10n.close),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: Observer(
+                  builder: (_) {
+                    if (_homeStore.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                      if (_homeStore.errorMessage != null) {
-                        // The timeline remains accessible; processing failures are recoverable.
-                        return Column(
-                          children: [
-                            MaterialBanner(
-                              content: Text(
-                                aiErrorMessage(l10n, _homeStore.errorMessage!),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      context.pushRoute(const SettingsRoute()),
-                                  child: Text(l10n.settings),
-                                ),
-                                TextButton(
-                                  onPressed: () =>
-                                      _homeStore.errorMessage = null,
-                                  child: Text(l10n.close),
-                                ),
-                              ],
+                    if (_homeStore.errorMessage != null) {
+                      // The timeline remains accessible; processing failures are recoverable.
+                      return Column(
+                        children: [
+                          MaterialBanner(
+                            content: Text(
+                              aiErrorMessage(l10n, _homeStore.errorMessage!),
                             ),
-                            Expanded(child: _timeline(l10n)),
-                          ],
-                        );
-                      }
-
-                      if (_homeStore.entries.isEmpty && !_isSearching) {
-                        return EmptyState(l10n: l10n);
-                      }
-
-                      return StreamBuilder<ProcessingFeedback?>(
-                        stream: _homeStore.processingFeedback.changes,
-                        initialData: _homeStore.processingFeedback.current,
-                        builder: (_, snapshot) => Observer(
-                          builder: (_) => Stack(
-                            children: [
-                              _timeline(l10n, feedback: snapshot.data),
-                              if (_homeStore.isSearching)
-                                const Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: LinearProgressIndicator(),
-                                ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    context.pushRoute(const SettingsRoute()),
+                                child: Text(l10n.settings),
+                              ),
+                              TextButton(
+                                onPressed: () => _homeStore.errorMessage = null,
+                                child: Text(l10n.close),
+                              ),
                             ],
                           ),
-                        ),
+                          Expanded(child: _timeline(l10n)),
+                        ],
                       );
-                    },
-                  ),
+                    }
+
+                    if (_homeStore.entries.isEmpty && !_isSearching) {
+                      return EmptyState(l10n: l10n);
+                    }
+
+                    return StreamBuilder<ProcessingFeedback?>(
+                      stream: _homeStore.processingFeedback.changes,
+                      initialData: _homeStore.processingFeedback.current,
+                      builder: (_, snapshot) => Observer(
+                        builder: (_) => Stack(
+                          children: [
+                            _timeline(l10n, feedback: snapshot.data),
+                            if (_homeStore.isSearching)
+                              const Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: LinearProgressIndicator(),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -351,6 +334,17 @@ class _HomeScreenState extends State<HomeScreen> {
         return TimelineItem(
           key: ValueKey(entry.id),
           entry: entry,
+          selected:
+              JournalWorkspaceScope.maybeOf(context)?.selectedEntryId ==
+              entry.id,
+          onOpen: () {
+            final workspace = JournalWorkspaceScope.maybeOf(context);
+            if (workspace != null) {
+              workspace.openEntry(entry.id);
+            } else {
+              context.pushRoute(EntryDetailRoute(entryId: entry.id));
+            }
+          },
           showDate: _homeStore.searchQuery.isNotEmpty,
           searchResult: _homeStore.searchQuery.isNotEmpty
               ? _homeStore.searchResultFor(entry)

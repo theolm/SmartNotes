@@ -104,7 +104,31 @@ component-specific styling.
 
 ## Journal Timeline
 
-- Keep the journal in a centered reading column no wider than 640dp.
+- In a single-pane window, keep the journal in a centered reading column no
+  wider than 640dp. Preserve the phone layout and primary recording action.
+- When both content minimums fit, use a quiet journal sidebar and a reading or
+  editing pane. The sidebar is the expanded navigation; do not add a redundant
+  rail of destinations to a journal with no folders or workspaces. Selected
+  entries use a tonal surface, not a new accent or boxed card treatment.
+- Capture is a workspace action: place its button at the bottom trailing corner
+  of the window in split layouts, not inside the journal sidebar. Compact
+  layouts retain the centered button. Recording dims and blocks both panes with
+  a full-window overlay and waveform. Keep Stop at the same anchor and visible
+  through fold/unfold, even if the feed becomes hidden. Avoid keyboard, safe-area,
+  and hinge obstruction when positioning the controls. Reading and editing
+  content reserve scroll clearance while the capture action is visible, so the
+  button cannot obscure the final lines or editor footer.
+- Start the reading pane with a neutral selection prompt, never an automatically
+  opened private entry. Opening or closing a fold preserves the selected entry;
+  compact presentation shows the active task, and Back returns to the list.
+- Keep reading text bounded at 640dp within the available pane. Editing may
+  expand to hide the sidebar, with an explicit control to restore it. Expansion
+  and resizing preserve the same unsaved editor. Switching entries uses the
+  existing Save/Discard/Keep editing confirmation, not automatic saving.
+- Pane decisions use usable space and text scaling. Large text, keyboard
+  occlusion, short windows, and separating folds may require one pane even in
+  an otherwise wide window. Avoid obstructed hinge regions; a flat crease alone
+  does not divide the page. No special tabletop interaction is introduced.
 - Content leads: optional titles use `titleMedium` with at most two lines;
   previews use `bodyLarge` with at most three lines of the current note body,
   not generated subtitles. Untitled entries start directly with their text.
