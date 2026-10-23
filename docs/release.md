@@ -131,6 +131,31 @@ Then verify:
 - Gatekeeper behavior on a Mac;
 - `SHA256SUMS.txt` against the downloaded files.
 
+### Android release startup regression check
+
+Test an optimized release build on a device before promoting a prerelease. Debug
+builds do not exercise R8 and cannot detect reflection-related startup failures.
+Use a separate application ID to preserve the installed journal:
+
+```sh
+# Run from app/ with the release signing environment variables configured.
+ORG_GRADLE_PROJECT_smartnotesApplicationId=dev.theolm.smartnotes.startuptest \
+  flutter build apk --release --target-platform android-arm64
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+adb shell am start -W -n \
+  dev.theolm.smartnotes.startuptest/dev.theolm.smartnotes.MainActivity
+adb shell pidof dev.theolm.smartnotes.startuptest
+adb logcat -b crash -d
+```
+
+Verify that onboarding is visible, the process stays alive, and no new crash is
+reported for the test package. Check the crash timestamps: logcat can include old
+failures. Repeat after force-stopping the test package to cover cold starts.
+
+`app/android/app/proguard-rules.pro` preserves the generated WorkManager database
+constructor that Room invokes through reflection. Removing it causes a
+`WorkDatabase_Impl.<init>` startup crash in optimized builds before Flutter starts.
+
 ## Limitations
 
 - Flutter release builds for macOS are universal by default (Apple Silicon and
