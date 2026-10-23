@@ -50,10 +50,7 @@ class TimelineItem extends StatelessWidget {
     final title = isError
         ? l10n.processingFailed
         : (entry.title?.trim().isNotEmpty == true ? entry.title! : null);
-    final subtitle = entry.subTitle?.trim().isNotEmpty == true
-        ? entry.subTitle!.trim()
-        : null;
-    final preview = subtitle ?? entry.body;
+    final preview = entry.body;
 
     final content = Slidable(
       key: ValueKey(entry.id),
@@ -118,15 +115,7 @@ class TimelineItem extends StatelessWidget {
                           dateLabel: time,
                         )
                       : !isProcessing && !isError && entry.body.isNotEmpty
-                      ? subtitle != null
-                            ? Text(
-                                subtitle,
-                                key: const ValueKey('preview'),
-                                style: Theme.of(context).textTheme.bodyLarge,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : entry.formattedNote != null
+                      ? entry.formattedNote != null
                             ? PlainTextPreview(
                                 key: const ValueKey('preview'),
                                 markdown: preview,

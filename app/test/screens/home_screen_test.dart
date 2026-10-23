@@ -614,6 +614,36 @@ void main() {
     expect(find.text('The original words I want to remember.'), findsOneWidget);
   });
 
+  for (final note in ['The saved edited words.', '']) {
+    testWidgets('preview respects the saved note body: "$note"', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      entriesController.add([
+        JournalEntry(
+          id: '1',
+          createdAt: now,
+          updatedAt: now,
+          status: EntryStatus.completed,
+          subTitle: 'Short summary of the note',
+          transcription: 'The original words.',
+          formattedNote: note,
+        ),
+      ]);
+
+      await tester.pumpWidget(_TestableHomeScreen(store: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Short summary of the note'), findsNothing);
+      expect(find.text('The original words.'), findsNothing);
+      if (note.isNotEmpty) {
+        expect(find.text(note), findsOneWidget);
+      } else {
+        expect(find.byKey(const ValueKey('preview')), findsNothing);
+      }
+    });
+  }
+
   testWidgets('renders empty state when no entries', (tester) async {
     entriesController.add([]);
 
