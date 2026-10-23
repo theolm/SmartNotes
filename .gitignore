@@ -14,3 +14,10 @@ key.properties
 local.properties
 .idea/
 *.iml
+
+# Apple signing material
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.p8
+*.cer

@@ -207,8 +207,13 @@ restore the sandbox capability in
 files, and network client), and set
 `DEVELOPMENT_TEAM` in `app/macos/Runner/Configs/AppInfo.xcconfig`.
 
+The iOS project ships without a development team; select your own team in
+Xcode before building for a device.
+
 Release signing currently uses `app/android/keystore/key.properties` or the
-`ALIAS`/`PASS` environment variables. Supply your own signing credentials for
+`ALIAS`/`PASS` environment variables. `key.properties` may also set `storeFile`;
+relative paths resolve from `app/android/app`, and without it the build uses
+`app/android/keystore/keystore.jks`. Supply your own signing credentials for
 distribution; never publish credentials or local environment files.
 
 For macOS release distribution, archive/sign/notarize the generated

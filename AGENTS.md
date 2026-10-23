@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues live in GitHub Issues at `theolm/local-notes`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues at `theolm/SmartNotes`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

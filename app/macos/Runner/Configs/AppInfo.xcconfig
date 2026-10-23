@@ -11,4 +11,4 @@ PRODUCT_NAME = SmartNotes
 PRODUCT_BUNDLE_IDENTIFIER = dev.theolm.smartnotes
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 dev.theolm. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Theo L.M.

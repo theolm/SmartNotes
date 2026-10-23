@@ -37,8 +37,10 @@ android {
         create("release") {
             keyAlias = System.getenv("ALIAS") ?: keystoreProperties["keyAlias"] as String?
             keyPassword = System.getenv("PASS") ?: keystoreProperties["keyPassword"] as String?
-            storeFile = file("../keystore/keystore.jks")
-            storePassword = System.getenv("PASS") ?: keystoreProperties["keyPassword"] as String?
+            // Optional override; relative paths resolve from app/android/app.
+            storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+                ?: file("../keystore/keystore.jks")
+            storePassword = System.getenv("PASS") ?: keystoreProperties["storePassword"] as String?
         }
     }
 
