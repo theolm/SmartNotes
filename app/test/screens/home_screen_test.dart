@@ -150,6 +150,54 @@ void main() {
     GetIt.I.reset();
   });
 
+  for (final width in [360.0, 1000.0]) {
+    for (final body in ['', 'Short note']) {
+      testWidgets('short cells fill the reading column at $width ($body)', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final date = DateTime(2026);
+        final entry = JournalEntry(
+          id: 'short',
+          createdAt: date,
+          updatedAt: date,
+          status: EntryStatus.completed,
+          transcription: body,
+        );
+        final router = MockStackRouter();
+        when(
+          () => router.push<Object?>(EntryDetailRoute(entryId: entry.id)),
+        ).thenAnswer((_) async => null);
+        await tester.pumpWidget(
+          _TestableHomeScreen(store: store, router: router),
+        );
+        entriesController.add([entry]);
+        await tester.pumpAndSettle();
+
+        final list = tester.getRect(find.byType(ListView));
+        final ink = find
+            .descendant(
+              of: find.byType(TimelineItem),
+              matching: find.byType(InkWell),
+            )
+            .first;
+        expect(tester.getSize(ink).width, list.width);
+        expect(list.width, lessThanOrEqualTo(640));
+        final right = Offset(list.right - 8, tester.getCenter(ink).dy);
+        await tester.tapAt(right);
+        await tester.pumpAndSettle();
+        verify(
+          () => router.push<Object?>(EntryDetailRoute(entryId: entry.id)),
+        ).called(1);
+
+        await tester.dragFrom(right, Offset(-list.width * 0.65, 0));
+        await tester.pumpAndSettle();
+        expect(find.text('Delete').hitTestable(), findsOneWidget);
+      });
+    }
+  }
+
   testWidgets(
     'amplitude updates waveform without rebuilding journal Scaffold or timeline',
     (tester) async {

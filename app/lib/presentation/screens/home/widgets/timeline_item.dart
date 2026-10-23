@@ -83,7 +83,8 @@ class TimelineItem extends StatelessWidget {
                 onRetry: onRetry,
               )
             : () => context.pushRoute(EntryDetailRoute(entryId: entry.id)),
-        child: Padding(
+        child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
             AppSpacing.md,
