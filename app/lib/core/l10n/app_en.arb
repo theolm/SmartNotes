@@ -1,4 +1,8 @@
 {
+  "journalSelectEntry": "Select an entry",
+  "journalSelectEntryHelp": "Choose a thought from your journal, or record a new one.",
+  "editorExpand": "Expand editor",
+  "editorRestore": "Show journal alongside editor",
   "journalMaintenance": "Updating local search…",
   "appTitle": "SmartNotes",
   "saveNoteTitle": "Save note",

@@ -72,7 +72,7 @@ void main() {
     expect(find.text('**Important**'), findsNothing);
   });
 
-  testWidgets('uses subtitle before the note body in the timeline preview', (
+  testWidgets('uses the note body instead of subtitle in the timeline preview', (
     tester,
   ) async {
     final now = DateTime(2026, 10, 20, 9, 30);
@@ -81,7 +81,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
       status: EntryStatus.completed,
-      transcription: 'The body should not be shown here.',
+      transcription: 'The current note body.',
       title: 'Conversation',
       subTitle: 'Plans for tomorrow.',
     );
@@ -95,7 +95,7 @@ void main() {
     );
 
     expect(find.text('Conversation'), findsOneWidget);
-    expect(find.text('Plans for tomorrow.'), findsOneWidget);
-    expect(find.text('The body should not be shown here.'), findsNothing);
+    expect(find.text('Plans for tomorrow.'), findsNothing);
+    expect(find.text('The current note body.'), findsOneWidget);
   });
 }

@@ -21,6 +21,7 @@ import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/enums/ai_action.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/presentation/screens/entry_detail/entry_detail_store.dart';
+import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dart';
 
 @RoutePage()
 class EntryDetailScreen extends StatefulWidget {
@@ -418,6 +419,10 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final captureInset =
+        JournalWorkspaceScope.maybeOf(context)?.captureVisible == true
+        ? AppSpacing.section
+        : 0.0;
 
     return Observer(
       builder: (_) => PopScope(
@@ -510,7 +515,12 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                         child: Padding(
                           padding: AppInsets.withBottomSystemPadding(
                             context,
-                            const EdgeInsets.all(AppSpacing.lg),
+                            EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.lg,
+                              AppSpacing.lg,
+                              AppSpacing.lg + captureInset,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
