@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:whisper_ggml/whisper_ggml.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
+import 'package:smartnotes/domain/entities/transcription_text.dart';
 import 'package:smartnotes/domain/services/i_settings_service.dart';
 import 'package:smartnotes/domain/services/i_speech_model_service.dart';
 import 'package:smartnotes/domain/services/i_transcription_service.dart';
@@ -107,9 +108,7 @@ class LocalTranscriptionService implements ITranscriptionService {
           'Local STT (${model.name}, language: $language) raw transcription:\n${response.text}',
         );
       }
-      final text = response.text.trim();
-      if (text.isEmpty) throw const AiFailure(AiFailureCode.noSpeech);
-      return text;
+      return requireSpeechTranscription(response.text);
     } finally {
       // Only owned conversion artifacts are removed; the recording is retained.
       try {

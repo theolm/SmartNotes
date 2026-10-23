@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/theme/app_spacing.dart';
 import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/record_fab.dart';
@@ -41,7 +42,18 @@ class JournalCapture extends StatelessWidget {
         // Never hide Stop when a resize hides the feed or search is active.
         isVisible: store.isRecording || showAction,
         isRecording: store.isRecording,
-        onPressed: store.toggleRecording,
+        onPressed: () async {
+          await store.toggleRecording();
+          if (!context.mounted || store.errorMessage != 'recordingNoSpeech') {
+            return;
+          }
+          store.errorMessage = null;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.recordingNoSpeech),
+            ),
+          );
+        },
       ),
       child: child,
     ),

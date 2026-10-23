@@ -485,6 +485,7 @@ abstract class _HomeStore with Store {
       logger.d('stopRecording: no-op, recording was not active');
       return;
     }
+    errorMessage = null;
     try {
       final audioPath = await _audioRecordingService.stop();
       isRecording = false;
@@ -502,7 +503,9 @@ abstract class _HomeStore with Store {
       _processEntry(entry);
     } catch (e) {
       logger.e('stopRecording: error — $e');
-      errorMessage = 'Failed to stop recording';
+      errorMessage = e is AiFailure && e.code == AiFailureCode.noSpeech
+          ? 'recordingNoSpeech'
+          : 'Failed to stop recording';
       isRecording = false;
     } finally {
       _cancelAmplitudeListener();

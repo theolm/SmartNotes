@@ -270,6 +270,14 @@ Never download from an unpinned `main` revision. Never switch the active model s
 
 Speech:
 
+- Before creating a captured entry, inspect the entire recording for confirmed
+  silence using a conservative peak threshold below -60 dBFS. Discard only the
+  capture-owned silent file and show a localized snackbar without scheduling
+  transcription. Inconclusive or failed analysis preserves the recording and
+  follows normal processing; volume is not a speech-versus-noise classifier.
+- Reject empty transcripts and Whisper non-speech markers such as `[BLANK_AUDIO]`
+  before persisting transcription text. If discovered after an entry was saved,
+  keep its original recording and normal retryable error behavior.
 - Use `whisper_ggml`. Decode audio to 16 kHz mono PCM at original speed.
 - Select the model by explicit file path, not only by enum. Keep the model loaded only for one job.
 - Automatic language detection is the default. On Apple platforms, run the app-owned whisper.cpp language-detection pre-pass on at most the first 30 seconds, then free that context before loading the transcription model. Android may use native `auto`.

@@ -52,6 +52,8 @@ import 'package:smartnotes/data/services/platform_model_downloader.dart'
     as _i203;
 import 'package:smartnotes/data/services/processing_feedback_service.dart'
     as _i751;
+import 'package:smartnotes/data/services/recording_signal_detector.dart'
+    as _i375;
 import 'package:smartnotes/data/services/speech_model_service.dart' as _i123;
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart'
     as _i1071;
@@ -129,6 +131,9 @@ Future<_i174.GetIt> $initGetIt(
   gh.lazySingleton<_i751.ProcessingFeedbackService>(
     () => _i751.ProcessingFeedbackService(),
   );
+  gh.lazySingleton<_i375.RecordingSignalDetector>(
+    () => _i375.RecordingSignalDetector(),
+  );
   gh.factory<_i269.IFileStorageService>(() => _i734.FileStorageService());
   gh.lazySingleton<_i422.IEntryDraftRepository>(
     () => _i1055.LocalEntryDraftRepository(),
@@ -144,12 +149,15 @@ Future<_i174.GetIt> $initGetIt(
   gh.lazySingleton<_i537.ModelVerificationStore>(
     () => _i537.ModelVerificationStore(gh<_i460.SharedPreferences>()),
   );
+  gh.factory<_i1071.IAudioRecordingService>(
+    () => _i391.AudioRecordingService(
+      gh<_i1039.AudioRecorder>(),
+      gh<_i375.RecordingSignalDetector>(),
+    ),
+  );
   gh.lazySingleton<_i934.ModelDownloadsStore>(
     () => _i934.ModelDownloadsStore(gh<_i13.IPlatformModelDownloader>()),
     dispose: _i934.disposeModelDownloadsStore,
-  );
-  gh.factory<_i1071.IAudioRecordingService>(
-    () => _i391.AudioRecordingService(gh<_i1039.AudioRecorder>()),
   );
   gh.lazySingleton<_i112.IJournalEntryService>(
     () => _i423.SqliteJournalEntryService(

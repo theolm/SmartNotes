@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobx/mobx.dart' hide when;
 import 'package:mocktail/mocktail.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
+import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart';
@@ -98,6 +99,25 @@ void main() {
   });
 
   group('HomeStore', () {
+    test(
+      'silent recording never creates an entry or starts transcription',
+      () async {
+        store.isRecording = true;
+        when(() => mockAudioService.stop()).thenThrow(
+          const AiFailure(AiFailureCode.noSpeech),
+        );
+
+        await store.toggleRecording();
+
+        expect(store.isRecording, false);
+        expect(store.isProcessing, false);
+        expect(store.errorMessage, 'recordingNoSpeech');
+        verifyNever(
+          () => mockJournalService.create(audioPath: any(named: 'audioPath')),
+        );
+        verifyZeroInteractions(mockUseCase);
+      },
+    );
     test('missing key never prevents stopping an active recording', () async {
       store.isRecording = true;
       when(() => mockAudioService.stop()).thenAnswer((_) async => null);
