@@ -1918,6 +1918,12 @@ abstract class AppLocalizations {
   /// **'No speech was detected. Your recording is still saved.'**
   String get aiNoSpeech;
 
+  /// No description provided for @recordingNoSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'No speech detected. Try recording again.'**
+  String get recordingNoSpeech;
+
   /// No description provided for @aiIncompleteNote.
   ///
   /// In en, this message translates to:

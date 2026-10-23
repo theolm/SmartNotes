@@ -4,6 +4,7 @@ import 'package:smartnotes/domain/entities/enums/ai_action.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
+import 'package:smartnotes/domain/entities/transcription_text.dart';
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart';
 import 'package:smartnotes/domain/services/i_note_processing_service.dart';
 
@@ -45,10 +46,9 @@ class ProcessAudioNoteUseCase {
         current.transcription!.trim().isEmpty) {
       final audioPath = current.audioPath;
       if (audioPath == null) throw Exception('No recording available');
-      final text = await _noteProcessingService.transcribe(audioPath);
-      if (text.trim().isEmpty) {
-        throw const AiFailure(AiFailureCode.noSpeech);
-      }
+      final text = requireSpeechTranscription(
+        await _noteProcessingService.transcribe(audioPath),
+      );
       // Preserve the original independently of all optional transformations.
       current = await _journalEntryService.update(
         current.copyWith(transcription: text),

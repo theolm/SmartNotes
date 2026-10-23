@@ -1061,6 +1061,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'No speech was detected. Your recording is still saved.';
 
   @override
+  String get recordingNoSpeech => 'No speech detected. Try recording again.';
+
+  @override
   String get aiIncompleteNote =>
       'The local model did not finish formatting within its token limit. Your transcription is saved; retry.';
 

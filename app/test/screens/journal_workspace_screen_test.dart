@@ -12,6 +12,7 @@ import 'package:smartnotes/core/routes/app_route.dart';
 import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
+import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart';
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart';
@@ -215,6 +216,35 @@ void main() {
     final nested = router.innerRouterOf<StackRouter>(HomeRoute.name)!;
     unawaited(nested.push<void>(EntryEditRoute(entryId: '0')));
     await tester.pumpAndSettle();
+  }
+
+  for (final width in [390.0, 1000.0]) {
+    testWidgets('silent capture shows a snackbar at width $width', (
+      tester,
+    ) async {
+      await mount(tester, initialEntry: '0');
+      when(
+        () => audio.stop(),
+      ).thenThrow(const AiFailure(AiFailureCode.noSpeech));
+
+      await tester.tap(find.byIcon(Icons.mic));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(home.isRecording, true);
+      await resize(tester, width);
+      await tester.tap(find.byIcon(Icons.stop));
+      await tester.pumpAndSettle();
+
+      expect(home.isRecording, false);
+      expect(home.errorMessage, isNull);
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        find.text('No speech detected. Try recording again.'),
+        findsOneWidget,
+      );
+      verifyNever(() => journal.create(audioPath: any(named: 'audioPath')));
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('wide starts private and selection survives folding and Back', (
