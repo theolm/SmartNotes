@@ -35,12 +35,20 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = System.getenv("ALIAS") ?: keystoreProperties["keyAlias"] as String?
-            keyPassword = System.getenv("PASS") ?: keystoreProperties["keyPassword"] as String?
+            // CI uses the KEY_* variables; ALIAS/PASS keep existing local scripts working.
+            keyAlias = System.getenv("KEY_ALIAS")
+                ?: System.getenv("ALIAS")
+                ?: keystoreProperties["keyAlias"] as String?
+            keyPassword = System.getenv("KEY_PASSWORD")
+                ?: System.getenv("PASS")
+                ?: keystoreProperties["keyPassword"] as String?
             // Optional override; relative paths resolve from app/android/app.
-            storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+            storeFile = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }?.let { file(it) }
+                ?: (keystoreProperties["storeFile"] as String?)?.let { file(it) }
                 ?: file("../keystore/keystore.jks")
-            storePassword = System.getenv("PASS") ?: keystoreProperties["storePassword"] as String?
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: System.getenv("PASS")
+                ?: keystoreProperties["storePassword"] as String?
         }
     }
 

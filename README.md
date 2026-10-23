@@ -89,7 +89,10 @@ flutter build ios
 flutter build macos
 ```
 
-Release signing is not included. Supply your own Android keystore and Apple signing identity.
+Official builds are produced by GitHub Actions from `v*` tags. Android releases are
+signed with the CI keystore; macOS releases are ad-hoc signed and not notarized, so
+the first launch requires approval in System Settings. See
+[`docs/release.md`](docs/release.md) for the release process and signing setup.
 
 ## Tests
 

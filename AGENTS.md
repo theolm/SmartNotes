@@ -6,6 +6,7 @@
 - `docs/agents/navigation.md` — auto_route conventions and examples for adding screens and navigating.
 - `PRODUCT.md` — strategic context: product register, platform, users, positioning, and design principles.
 - `CONTEXT.md` — domain vocabulary and ubiquitous language.
+- `docs/release.md` — release workflow, versioning, and signing setup.
 
 ## Agent skills
 
