@@ -155,7 +155,13 @@ jobs:
             if [[ ! -x "$SDKMANAGER" ]]; then
               SDKMANAGER="$(command -v sdkmanager)"
             fi
+            # The runner image does not accept every SDK license.
+            { yes || true; } | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null 2>&1
             "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "ndk;$NDK_VERSION"
+            if [[ ! -d "$ANDROID_HOME/ndk/$NDK_VERSION" ]]; then
+              echo "::error::Failed to install NDK $NDK_VERSION."
+              exit 1
+            fi
           fi
 
       - name: Install dependencies
