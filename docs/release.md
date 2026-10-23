@@ -5,11 +5,14 @@ The workflow runs when a semver tag is pushed and produces:
 
 | Artifact | Platform |
 |---|---|
-| `SmartNotes-<version>-android.apk` | Universal APK (arm64-v8a, armeabi-v7a, x86_64) |
+| `SmartNotes-<version>-android-arm64-v8a.apk` | Almost all modern phones; recommended download |
+| `SmartNotes-<version>-android-armeabi-v7a.apk` | Older 32-bit phones |
+| `SmartNotes-<version>-android-x86_64.apk` | Emulators and x86 Chromebooks |
 | `SmartNotes-<version>-macos-universal.dmg` | Universal macOS app (Apple Silicon and Intel) |
 | `SHA256SUMS.txt` | SHA-256 checksums for all assets |
 
-The GitHub Release is only created after both the Android and macOS jobs succeed.
+Android APKs are split per ABI to keep each download small. The release is only
+created after all build jobs succeed.
 
 ## Cutting a release
 
@@ -124,7 +127,7 @@ Then verify:
 
 - the DMG contains both architectures
   (`lipo -info SmartNotes.app/Contents/MacOS/SmartNotes`);
-- the APK signature with `apksigner verify --print-certs`;
+- each APK signature with `apksigner verify --print-certs`;
 - Gatekeeper behavior on a Mac;
 - `SHA256SUMS.txt` against the downloaded files.
 
