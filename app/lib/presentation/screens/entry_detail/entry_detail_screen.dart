@@ -250,6 +250,8 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.aiChangesApplied),
+            duration: const Duration(seconds: 8),
+            persist: false,
             action: SnackBarAction(label: l10n.undo, onPressed: _undoChanges),
           ),
         );
