@@ -19,19 +19,20 @@ defaults:
 jobs:
   pr-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Flutter
-        # Avoid the composite action's unpinned transitive cache action.
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
-          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/flutter/bin/flutter" --version
+        run: bash tool/ci/setup_flutter.sh
+
+      - name: Setup Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Cache pub dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -52,3 +53,36 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('app/android/**/*.gradle*', 'app/android/gradle/wrapper/gradle-wrapper.properties', 'app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install Android NDK
+        run: |
+          set -euo pipefail
+          NDK_VERSION="29.0.13113456"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          { yes || true; } | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null 2>&1
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "ndk;$NDK_VERSION"
+
+      - name: Create disposable CI signing key
+        run: |
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/ci.jks" \
+            -storepass android -keypass android -alias androiddebugkey \
+            -dname "CN=SmartNotes CI" -keyalg RSA -keysize 2048 -validity 2
+
+      - name: Build Android release APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/ci.jks
+          KEYSTORE_PASSWORD: android
+          KEY_PASSWORD: android
+          KEY_ALIAS: androiddebugkey
+          ORG_GRADLE_PROJECT_smartnotesApplicationId: dev.theolm.smartnotes.ci
+        run: flutter build apk --release --target-platform android-arm64
