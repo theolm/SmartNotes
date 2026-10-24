@@ -270,6 +270,14 @@ Never download from an unpinned `main` revision. Never switch the active model s
 
 Speech:
 
+- Before creating a captured entry, inspect the entire recording for confirmed
+  silence using a conservative peak threshold below -60 dBFS. Discard only the
+  capture-owned silent file and show a localized snackbar without scheduling
+  transcription. Inconclusive or failed analysis preserves the recording and
+  follows normal processing; volume is not a speech-versus-noise classifier.
+- Reject empty transcripts and Whisper non-speech markers such as `[BLANK_AUDIO]`
+  before persisting transcription text. If discovered after an entry was saved,
+  keep its original recording and normal retryable error behavior.
 - Use `whisper_ggml`. Decode audio to 16 kHz mono PCM at original speed.
 - Select the model by explicit file path, not only by enum. Keep the model loaded only for one job.
 - Automatic language detection is the default. On Apple platforms, run the app-owned whisper.cpp language-detection pre-pass on at most the first 30 seconds, then free that context before loading the transcription model. Android may use native `auto`.
@@ -336,6 +344,49 @@ Model checks and journal recovery must never delay route protection or the first
 - Use `auto_route` transitions. Do not introduce a second navigation system.
 - Keep the capture action dominant. UI chrome must not compete with the journal content.
 
+### Adaptive journal workspace
+
+- `HomeRoute` hosts `JournalWorkspaceScreen`, a persistent journal feed and a
+  nested `AutoRouter`. Its initial child is `JournalEmptyRoute`; detail and edit
+  routes are children of this same workspace and retain `LocalLockGuard`.
+- `JournalCapture` belongs above both content panes, not inside the feed. It
+  binds the shared `HomeStore` once; the feed reports its ephemeral search mode
+  to the workspace without owning capture UI. Its recording scrim blocks touch,
+  focus, and semantics across the entire workspace. Stop remains available even
+  when folding hides the feed. Content panes own keyboard avoidance; the outer
+  capture scaffold does not resize them a second time. FAB geometry respects
+  keyboard insets and the unobstructed region resolved by `AppPaneLayout`.
+- The child route is the source of truth for the open entry. Do not maintain a
+  second selected-entry observable or mutate the route stack on a size change.
+  Selecting another entry replaces the detail route rather than accumulating
+  a history of sidebar selections. Back returns to the journal.
+- `AppPaneLayout` in the theme layer resolves immutable geometry from local
+  constraints, text scaling, safe insets, keyboard occlusion, directionality,
+  and Android display features. It does not inspect hardware names, device
+  categories, platform, or orientation. Width minimums describe usable content;
+  they are not device classifications.
+- `AdaptivePanes` keeps both children in stable element positions. Resize,
+  fold/unfold, keyboard changes, and editor expansion change geometry and
+  visibility, never navigator or editor ownership. Hidden panes exclude focus,
+  semantics, and animation tickers. Each pane receives local MediaQuery geometry
+  and insets. Keep screen-level controllers and feature stores alive for their
+  route/session; do not promote them to global singletons to survive resize.
+- The existing editor's recovery draft remains a failure-recovery mechanism,
+  not a way to transfer an editor between separate compact and wide widgets.
+  Text, selection, focus, search, and scroll have live session ownership.
+- `JournalNavigationSession` is a workspace-owned presentation handshake for
+  leaving the editor. Sidebar and notification entry selection await the same
+  Save/Discard/Keep editing flow, including metadata review and write failure.
+  `AppRouter.openJournalEntry` forwards notification requests to that action
+  when a workspace is mounted; cold navigation constructs guarded nested routes.
+- Respect separating hinges and half-open folds. A flat, non-occluding crease
+  does not force a split. If two usable regions cannot fit, use an unobstructed
+  single region. No custom tabletop workflow or device-specific package is
+  required. Use SDK layout primitives instead of a second layout framework.
+- The first implementation adds no custom keyboard shortcuts, multi-window
+  documents, or user-resizable pane dividers. Standard keyboard focus and
+  pointer interaction remain supported.
+
 ## 13. Testing
 
 - Put unit and widget tests in `app/test/`, mirroring `lib/` paths.
@@ -345,6 +396,16 @@ Model checks and journal recovery must never delay route protection or the first
 - Test services at their interface boundary. Test persistence migrations against a temporary database.
 - Do not download real models in unit tests. Use small fixtures and injected clients.
 - Real-model and device tests are opt-in. Use a separate application ID or test install; device tests may uninstall the app and erase data.
+- Native macOS integration coverage for adaptive entry selection lives in
+  `integration_test/adaptive_journal_platform_test.dart`. It opens only a generated
+  temporary journal, runs the actual SQLite worker and nested routes, and never
+  initializes the user's journal or model services.
+- Stop a live macOS debug app before rebuilding its native assets with another
+  build or native integration test. Relaunch the process afterwards; do not hot
+  reload the old process against replaced native frameworks. Native SQLite
+  connections and prepared statements cannot be transferred between separately
+  loaded copies of the SQLite library. A hot restart is not a substitute for a
+  process restart after a native rebuild.
 - Run `flutter analyze` and `flutter test` before every change. Add tests for behavior changes, failure paths, and concurrency guards.
 
 ## 14. Code generation

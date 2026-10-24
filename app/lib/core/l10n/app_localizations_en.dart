@@ -9,6 +9,19 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get journalSelectEntry => 'Select an entry';
+
+  @override
+  String get journalSelectEntryHelp =>
+      'Choose a thought from your journal, or record a new one.';
+
+  @override
+  String get editorExpand => 'Expand editor';
+
+  @override
+  String get editorRestore => 'Show journal alongside editor';
+
+  @override
   String get journalMaintenance => 'Updating local search…';
 
   @override
@@ -1046,6 +1059,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiNoSpeech =>
       'No speech was detected. Your recording is still saved.';
+
+  @override
+  String get recordingNoSpeech => 'No speech detected. Try recording again.';
 
   @override
   String get aiIncompleteNote =>

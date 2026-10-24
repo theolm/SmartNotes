@@ -116,6 +116,92 @@ void main() {
     expect(await service.transcribe('/audio.m4a'), 'Olá');
     expect(session.messages, isNull);
   });
+  for (final opening in [
+    '# Conversation',
+    '  # Conversation ###',
+    '# **Conversation**',
+    'Conversation\n============',
+    '**Conversation**',
+    '__Conversation__',
+    '# Conversation\n\n## Plans for tomorrow.',
+    '# Conversation\n\n**Plans for tomorrow.**',
+    'Conversation\n---\n\nPlans for tomorrow.\n---',
+    '\n\n# Conversation\n\n# Conversation',
+  ]) {
+    test('removes exact opening metadata headers: $opening', () async {
+      const body =
+          '- Speak with Ana tomorrow.\n\n## Details\nKeep this section.';
+      session.result = LlamaCompletion(
+        text: jsonEncode({
+          'title': 'Conversation',
+          'subTitle': 'Plans for tomorrow.',
+          'markdown': '$opening\n\n$body',
+        }),
+        finishReason: LlamaFinishReason.stop,
+      );
+      final note = await format('Speak with Ana tomorrow.');
+      expect(note.markdown, body);
+      expect(note.title, 'Conversation');
+      expect(note.subTitle, 'Plans for tomorrow.');
+      expect(note.transcription, 'Speak with Ana tomorrow.');
+    });
+  }
+  for (final body in [
+    'Conversation\n\nSpeak with Ana tomorrow.',
+    'Plans for tomorrow.\n\nSpeak with Ana tomorrow.',
+    '**Plans for tomorrow.**\nSpeak with Ana tomorrow.',
+    '# Conversation with Ana\n\nSpeak tomorrow.',
+    '# conversation\n\nSpeak tomorrow.',
+    '## Details\n\n# Conversation',
+    '- Conversation\n- Speak tomorrow.',
+    '> # Conversation\n\nSpeak tomorrow.',
+    '```markdown\n# Conversation\n```',
+    '    # Conversation\n\nSpeak tomorrow.',
+    '\nSpeak with Ana tomorrow.\n\n# Conversation\n',
+  ]) {
+    test('preserves prose and non-metadata blocks verbatim: $body', () async {
+      session.result = LlamaCompletion(
+        text: jsonEncode({
+          'title': 'Conversation',
+          'subTitle': 'Plans for tomorrow.',
+          'markdown': body,
+        }),
+        finishReason: LlamaFinishReason.stop,
+      );
+      expect((await format('Speak with Ana tomorrow.')).markdown, body);
+    });
+  }
+  test('rejects a body consisting only of metadata headers', () async {
+    session.result = LlamaCompletion(
+      text: jsonEncode({
+        'title': 'Conversation',
+        'subTitle': 'Plans for tomorrow.',
+        'markdown': '# Conversation\n\n**Plans for tomorrow.**',
+      }),
+      finishReason: LlamaFinishReason.stop,
+    );
+    await expectLater(
+      format('Speak with Ana tomorrow.'),
+      throwsA(failure(AiFailureCode.invalidNote)),
+    );
+    expect(session.disposed, true);
+  });
+  for (final body in [
+    '    # Conversation\n\nSpeak tomorrow.\n',
+    'Speak tomorrow.\r\n\r\n## Details\r\nKeep this.\r\n',
+  ]) {
+    test('header removal preserves remaining whitespace: $body', () async {
+      session.result = LlamaCompletion(
+        text: jsonEncode({
+          'title': 'Conversation',
+          'subTitle': '',
+          'markdown': '# Conversation\r\n\r\n$body',
+        }),
+        finishReason: LlamaFinishReason.stop,
+      );
+      expect((await format('Speak tomorrow.')).markdown, body);
+    });
+  }
   test(
     'metadata uses a two-field schema and the transcription language',
     () async {
@@ -199,6 +285,15 @@ void main() {
         );
         expect(session.messages, hasLength(2));
         expect(session.messages!.first.content, contains('Presentation:'));
+        expect(
+          session.messages!.first.content,
+          contains('The markdown field is the note body only.'),
+        );
+        expect(
+          session.messages!.first.content,
+          contains('Do not repeat title or subTitle'),
+        );
+        expect(session.messages!.first.content, contains('Example shape only'));
         expect(session.disposed, true);
       },
     );

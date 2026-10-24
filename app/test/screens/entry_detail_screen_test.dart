@@ -508,6 +508,15 @@ void main() {
       await tester.tap(find.text('Apply'));
       await tester.pumpAndSettle();
       expect(store.entry, updated);
+      final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+      expect(snackBar.persist, false);
+      expect(snackBar.duration, const Duration(seconds: 8));
+      expect(find.text('Undo'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 7));
+      expect(find.byType(SnackBar), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsNothing);
       verify(
         () => mockUseCase.applyAiAction(entry, AiAction.organizedNote),
       ).called(1);

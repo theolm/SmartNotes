@@ -5,14 +5,17 @@ import 'package:injectable/injectable.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:smartnotes/data/services/recording_signal_detector.dart';
+import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart';
 import 'package:smartnotes/core/utils/log.dart' show logger;
 
 @Injectable(as: IAudioRecordingService)
 class AudioRecordingService implements IAudioRecordingService {
-  AudioRecordingService(this._record);
+  AudioRecordingService(this._record, this._signalDetector);
 
   final AudioRecorder _record;
+  final RecordingSignalDetector _signalDetector;
   String? _currentPath;
 
   static const double _minDbfs = -60;
@@ -79,10 +82,21 @@ class AudioRecordingService implements IAudioRecordingService {
     }
     final path = await _record.stop();
     final recordedPath = path ?? _currentPath;
+    final ownedPath = _currentPath;
     _currentPath = null;
 
     if (recordedPath == null) {
       logger.w('stopRecording: returned path is null');
+    } else if (await _signalDetector.isSilent(recordedPath)) {
+      // Only discard the file created by this capture, never an unrelated path.
+      if (recordedPath == ownedPath) {
+        try {
+          await File(recordedPath).delete();
+        } on FileSystemException {
+          logger.w('Could not remove silent recording');
+        }
+      }
+      throw const AiFailure(AiFailureCode.noSpeech);
     }
 
     return recordedPath;

@@ -13,6 +13,7 @@ import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/services/i_entry_draft_repository.dart';
 import 'package:smartnotes/presentation/entry_write_message.dart';
 import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_store.dart';
+import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dart';
 
 @RoutePage()
 class EntryEditScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   final _subtitle = TextEditingController();
   final _body = TextEditingController();
   final _bodyFocus = FocusNode();
+  JournalNavigationSession? _navigationSession;
   Timer? _debounce;
   bool _ready = false;
   bool _allowPop = false;
@@ -41,6 +43,24 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   bool _saveInProgress = false;
   EntryEditDraft? _orphanDraft;
   bool get _saving => _saveInProgress || _store.isSaving;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final session = JournalWorkspaceScope.maybeOf(context)?.session;
+    if (_navigationSession != session) {
+      if (_navigationSession?.leaveEditor == _leaveForNavigation) {
+        _navigationSession?.leaveEditor = null;
+      }
+      _navigationSession = session;
+      session?.leaveEditor = _leaveForNavigation;
+    }
+  }
+
+  Future<bool> _leaveForNavigation() async {
+    await _exit();
+    return _allowPop;
+  }
 
   bool get _dirty {
     final entry = _store.entry;
@@ -193,6 +213,9 @@ class _EntryEditScreenState extends State<EntryEditScreen>
 
   @override
   void dispose() {
+    if (_navigationSession?.leaveEditor == _leaveForNavigation) {
+      _navigationSession?.leaveEditor = null;
+    }
     WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
     // Queue a final best-effort snapshot before disposing the controllers.
@@ -580,6 +603,10 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final workspace = JournalWorkspaceScope.maybeOf(context);
+    final captureInset = workspace?.captureVisible == true
+        ? AppSpacing.section
+        : 0.0;
     return Observer(
       builder: (_) => PopScope(
         canPop: _allowPop || (!_saveInProgress && !_store.isSaving && !_dirty),
@@ -588,11 +615,27 @@ class _EntryEditScreenState extends State<EntryEditScreen>
         },
         child: Scaffold(
           appBar: AppBar(
-            title: Text(l10n.editEntryTitle),
+            title: Text(
+              l10n.editEntryTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             leading: BackButton(
               onPressed: _saveInProgress || _store.isSaving ? null : _exit,
             ),
             actions: [
+              if (workspace?.canExpand == true)
+                IconButton(
+                  tooltip: workspace!.editorExpanded
+                      ? l10n.editorRestore
+                      : l10n.editorExpand,
+                  onPressed: workspace.toggleEditorExpanded,
+                  icon: Icon(
+                    workspace.editorExpanded
+                        ? Icons.close_fullscreen
+                        : Icons.open_in_full,
+                  ),
+                ),
               TextButton.icon(
                 onPressed:
                     !_ready ||
@@ -660,7 +703,12 @@ class _EntryEditScreenState extends State<EntryEditScreen>
               : SingleChildScrollView(
                   padding: AppInsets.withBottomSystemPadding(
                     context,
-                    const EdgeInsets.all(AppSpacing.lg),
+                    EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg + captureInset,
+                    ),
                   ),
                   child: Center(
                     child: ConstrainedBox(

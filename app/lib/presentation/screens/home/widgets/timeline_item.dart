@@ -10,6 +10,7 @@ import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/processing_feedback.dart';
 import 'package:smartnotes/domain/entities/search_result.dart';
+import 'plain_text_preview.dart';
 import 'search_excerpt.dart';
 
 class TimelineItem extends StatelessWidget {
@@ -21,6 +22,8 @@ class TimelineItem extends StatelessWidget {
     this.feedback,
     this.showDate = false,
     this.searchResult,
+    this.onOpen,
+    this.selected = false,
   });
 
   final JournalEntry entry;
@@ -29,18 +32,8 @@ class TimelineItem extends StatelessWidget {
   final ProcessingFeedback? feedback;
   final bool showDate;
   final SearchResult? searchResult;
-
-  String get _preview {
-    final text = entry.body;
-    // Layout only needs a few lines, not a multi-megabyte recording transcript.
-    if (text.length <= 600) return text;
-    var end = 600;
-    if (text.codeUnitAt(end - 1) >= 0xD800 &&
-        text.codeUnitAt(end - 1) <= 0xDBFF) {
-      end--;
-    }
-    return '${text.substring(0, end)}…';
-  }
+  final VoidCallback? onOpen;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +50,9 @@ class TimelineItem extends StatelessWidget {
     final title = isError
         ? l10n.processingFailed
         : (entry.title?.trim().isNotEmpty == true ? entry.title! : null);
+    final preview = entry.body;
 
-    return Slidable(
+    final content = Slidable(
       key: ValueKey(entry.id),
       endActionPane: onDelete == null
           ? null
@@ -82,8 +76,13 @@ class TimelineItem extends StatelessWidget {
                 context,
                 onRetry: onRetry,
               )
-            : () => context.pushRoute(EntryDetailRoute(entryId: entry.id)),
-        child: Padding(
+            : onOpen ??
+                  () => context.pushRoute(EntryDetailRoute(entryId: entry.id)),
+        child: Container(
+          color: selected
+              ? Theme.of(context).colorScheme.surfaceContainerHighest
+              : null,
+          width: double.infinity,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
             AppSpacing.md,
@@ -116,13 +115,19 @@ class TimelineItem extends StatelessWidget {
                           dateLabel: time,
                         )
                       : !isProcessing && !isError && entry.body.isNotEmpty
-                      ? Text(
-                          _preview,
-                          key: const ValueKey('preview'),
-                          style: Theme.of(context).textTheme.bodyLarge,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        )
+                      ? entry.formattedNote != null
+                            ? PlainTextPreview(
+                                key: const ValueKey('preview'),
+                                markdown: preview,
+                                maxLines: 3,
+                              )
+                            : Text(
+                                preview,
+                                key: const ValueKey('preview'),
+                                style: Theme.of(context).textTheme.bodyLarge,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              )
                       : const SizedBox.shrink(key: ValueKey('pending')),
                 ),
                 if (searchResult == null ||
@@ -160,6 +165,7 @@ class TimelineItem extends StatelessWidget {
         ),
       ),
     );
+    return Semantics(selected: selected ? true : null, child: content);
   }
 }
 
