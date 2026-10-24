@@ -16,7 +16,7 @@ created after all build jobs succeed.
 
 ## CI validation
 
-PR checks and release builds use Flutter 3.47.6, pinned to its full Git revision
+PR checks and release builds use Flutter 3.47.8, pinned to its full Git revision
 in `app/tool/ci/setup_flutter.sh`. Update the version and revision together when
 deliberately upgrading the SDK.
 
