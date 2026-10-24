@@ -65,7 +65,7 @@ class _EmbeddingModelCatalogState extends State<EmbeddingModelCatalog>
     if (model.family == EmbeddingFamily.gemma) {
       final l10n = AppLocalizations.of(context)!;
       final terms = await rootBundle.loadString(
-        'assets/licenses/embeddinggemma-NOTICE.txt',
+        'assets/licenses/gemma-NOTICE.txt',
       );
       if (!mounted ||
           !await _confirm(

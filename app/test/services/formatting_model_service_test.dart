@@ -111,7 +111,25 @@ void main() {
   );
 
   test('catalog metadata is pinned and stable', () {
-    expect(FormattingModel.catalog, hasLength(2));
+    expect(FormattingModel.catalog, hasLength(4));
+    expect(FormattingModel.qwen3_4bInstruct.bytes, 2497281120);
+    expect(
+      FormattingModel.qwen3_4bInstruct.sha256,
+      '3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597',
+    );
+    expect(FormattingModel.gemma3_4b.bytes, 2489894016);
+    expect(
+      FormattingModel.gemma3_4b.sha256,
+      '04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19',
+    );
+    expect(FormattingModel.gemma3_4b.requiresGemmaTerms, isTrue);
+    expect(FormattingModel.gemma3_4b.license, 'Gemma Terms of Use');
+    expect(FormattingModel.qwen3_4bInstruct.license, 'Apache-2.0');
+    for (final item in FormattingModel.catalog) {
+      expect(item.url, matches(RegExp(r'/resolve/[0-9a-f]{40}/')));
+      expect(item.sha256, matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect(FormattingModel.find(item.id), same(item));
+    }
     expect(FormattingModel.qwen3_0_6b.id, 'qwen3-0.6b-q8_0');
     expect(FormattingModel.qwen3_0_6b.bytes, 639446688);
     expect(

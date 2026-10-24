@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
@@ -72,7 +73,9 @@ void main() {
     await render(tester);
     expect(find.text('AI organization'), findsOneWidget);
     expect(find.byType(ModelSettingsPage), findsOneWidget);
-    expect(find.byType(ModelCatalogTile), findsNWidgets(2));
+    expect(find.byType(ModelCatalogTile), findsNWidgets(4));
+    expect(find.text(FormattingModel.qwen3_4bInstruct.name), findsOneWidget);
+    expect(find.text(FormattingModel.gemma3_4b.name), findsOneWidget);
     expect(find.text('Recommended for this device'), findsOneWidget);
     expect(find.text('Qwen3 1.7B Q4_K_M'), findsOneWidget);
     expect(find.text('Qwen3 0.6B Q8'), findsOneWidget);
@@ -185,5 +188,59 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text(FormattingModel.gemma3_4b.name));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Gemma download requires terms acceptance and preserves selection',
+    (tester) async {
+      await tester.runAsync(
+        () => rootBundle.loadString('assets/licenses/gemma-NOTICE.txt'),
+      );
+      await store.downloadOne(FormattingModel.qwen3_1_7b.id);
+      await render(tester);
+      final download = find.byKey(
+        ValueKey('formatting-download-${FormattingModel.gemma3_4b.id}'),
+      );
+      await tester.ensureVisible(download);
+      await tester.pumpAndSettle();
+      await tester.tap(download);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(store.ready(FormattingModel.gemma3_4b.id), isFalse);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(store.ready(FormattingModel.gemma3_4b.id), isFalse);
+      await tester.tap(download);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Accept and download'));
+      await tester.pumpAndSettle();
+      expect(store.ready(FormattingModel.gemma3_4b.id), isTrue);
+      expect(store.activeId, FormattingModel.qwen3_1_7b.id);
+      final name = find.text(FormattingModel.gemma3_4b.name);
+      await tester.ensureVisible(name);
+      await tester.pumpAndSettle();
+      await tester.tap(name);
+      await tester.pumpAndSettle();
+      expect(store.activeId, FormattingModel.gemma3_4b.id);
+    },
+  );
+
+  testWidgets('Gemma information displays its own license', (tester) async {
+    await render(tester);
+    final info = find.descendant(
+      of: find.byKey(
+        ValueKey('formatting-model-row-${FormattingModel.gemma3_4b.id}'),
+      ),
+      matching: find.byTooltip('Model capabilities'),
+    );
+    await tester.ensureVisible(info);
+    await tester.pumpAndSettle();
+    await tester.tap(info);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('License: Gemma Terms of Use'), findsOneWidget);
+    expect(find.textContaining('Apache-2.0'), findsNothing);
   });
 }

@@ -17,8 +17,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(
-      ['EmbeddingGemma 300M'],
-      await rootBundle.loadString('assets/licenses/embeddinggemma-NOTICE.txt'),
+      ['EmbeddingGemma 300M', 'Gemma 3 4B IT'],
+      await rootBundle.loadString('assets/licenses/gemma-NOTICE.txt'),
     );
     yield LicenseEntryWithLineBreaks([
       'Whisper model',

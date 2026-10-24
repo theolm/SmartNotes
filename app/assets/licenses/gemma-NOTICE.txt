@@ -1,7 +1,8 @@
 Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms
 
-EmbeddingGemma 300M was created by Google DeepMind. The downloaded GGUF is a
-Q8_0 conversion published by ggml-org, not a modification made by SmartNotes.
+EmbeddingGemma 300M and Gemma 3 4B IT were created by Google DeepMind.
+The downloaded GGUFs are conversions published by ggml-org (EmbeddingGemma Q8_0)
+and Unsloth (Gemma 3 Q4_K_M), not modifications made by SmartNotes.
 
 Gemma Terms of Use
 Source: https://ai.google.dev/gemma/terms

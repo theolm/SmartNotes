@@ -69,8 +69,12 @@ component-specific styling.
   Search by meaning and Backup and restore have dedicated pages; index repair
   lives under Advanced, and pending indexing actions appear only when needed.
   Labels and summaries wrap at compact widths and larger text scales.
-- Model setup names each download and its size, with progress, cancel,
-  retry, and verification. Required speech and embedding models and the optional
+- Model setup names each download and its size, with progress, cancellation,
+  retry and verification. Optional larger 4B organization models have explicit
+  memory/speed guidance
+  and a scrollable Gemma terms confirmation before its download. All options
+  retain the same shared catalog rows; smaller models remain recommended.
+  Required speech and embedding models and the optional
   formatting-model step share the same compact row treatment; the formatting
   step can be skipped and remains available in Settings. Search settings expose
   pending/failed indexing and repair; partial semantic results carry an explicit
