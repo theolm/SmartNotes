@@ -8,6 +8,7 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/speech_models_store.dart';
 import 'package:smartnotes/presentation/widgets/local_model_size.dart';
+import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
 import 'package:smartnotes/presentation/widgets/speech_model_catalog.dart';
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
 import 'package:smartnotes/data/services/speech_model_service.dart';
@@ -63,184 +64,153 @@ class _SpeechModelsScreenState extends State<SpeechModelsScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Observer(
-      builder: (_) => PopScope(
+      builder: (_) => ModelSettingsPage(
+        title: l10n.transcriptionSettingsTitle,
         canPop: !store.busy || store.activatingId != null,
-        child: Scaffold(
-          appBar: AppBar(title: Text(l10n.transcriptionSettingsTitle)),
-          body: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 640),
-                      child: ListView(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        children: [
-                          Text(
-                            l10n.speechModelsManageIntro,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          if (store.language !=
-                                  getIt<SettingsStore>().audioLanguage &&
-                              !store.activeReady) ...[
-                            Text(l10n.speechModelLanguageChange),
-                            const SizedBox(height: AppSpacing.md),
-                          ],
-                          DropdownButtonFormField<String>(
-                            initialValue: store.language ?? 'auto',
-                            key: ValueKey((store.language, _changingLanguage)),
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              labelText: l10n.audioLanguage,
-                            ),
-                            items:
-                                {
-                                      'auto': l10n.audioLanguageAutomatic,
-                                      ...audioLanguageOptions,
-                                    }.entries
-                                    .map(
-                                      (entry) => DropdownMenuItem(
-                                        value: entry.key,
-                                        child: Text(entry.value),
-                                      ),
-                                    )
-                                    .toList(),
-                            onChanged:
-                                store.busy || store.loading || _changingLanguage
-                                ? null
-                                : (value) async {
-                                    final language = value == 'auto'
-                                        ? null
-                                        : value;
-                                    setState(() => _changingLanguage = true);
-                                    try {
-                                      await getIt<SettingsStore>()
-                                          .setAudioLanguage(language);
-                                      _requestedLanguage = language;
-                                      store.setLanguage(language);
-                                    } on SpeechModelException catch (error) {
-                                      if (error.problem ==
-                                              SpeechModelProblem.incompatible ||
-                                          error.problem ==
-                                              SpeechModelProblem.notReady) {
-                                        _requestedLanguage = language;
-                                        store.setLanguage(language);
-                                      } else if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              speechModelError(l10n, error),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    } catch (error) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              speechModelError(l10n, error),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    } finally {
-                                      if (mounted) {
-                                        setState(
-                                          () => _changingLanguage = false,
-                                        );
-                                      }
-                                    }
-                                  },
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            l10n.speechModelStorageSummary(
-                              localModelSize(context, store.installedBytes),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          if (store.error != null && !store.busy)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton(
-                                onPressed: () => store.load(_requestedLanguage),
-                                child: Text(l10n.retry),
-                              ),
-                            ),
-                          AbsorbPointer(
-                            absorbing: _changingLanguage,
-                            child: SpeechModelCatalog(store: store),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          ExpansionTile(
-                            tilePadding: EdgeInsets.zero,
-                            title: Text(l10n.retryRecordings),
-                            children: [
-                              Text(l10n.transcriptionRecoveryHelp),
-                              const SizedBox(height: AppSpacing.sm),
-                              if (_retrying) const LinearProgressIndicator(),
-                              OutlinedButton(
-                                onPressed:
-                                    _retrying ||
-                                        store.busy ||
-                                        !store.activeReady
-                                    ? null
-                                    : () async {
-                                        setState(() => _retrying = true);
-                                        try {
-                                          await getIt<LocalDataStore>()
-                                              .retryRecordings();
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  l10n.transcriptionRecoveryDone,
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        } catch (error) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  speechModelError(l10n, error),
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() => _retrying = false);
-                                          }
-                                        }
-                                      },
-                                child: Text(l10n.retryRecordings),
-                              ),
-                            ],
-                          ),
-                        ],
+        children: [
+          Text(
+            l10n.speechModelsManageIntro,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (store.language != getIt<SettingsStore>().audioLanguage &&
+              !store.activeReady) ...[
+            Text(l10n.speechModelLanguageChange),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          DropdownButtonFormField<String>(
+            initialValue: store.language ?? 'auto',
+            key: ValueKey((store.language, _changingLanguage)),
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: l10n.audioLanguage,
+            ),
+            items:
+                {
+                      'auto': l10n.audioLanguageAutomatic,
+                      ...audioLanguageOptions,
+                    }.entries
+                    .map(
+                      (entry) => DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
                       ),
-                    ),
-                  ),
-                ),
-              ],
+                    )
+                    .toList(),
+            onChanged: store.busy || store.loading || _changingLanguage
+                ? null
+                : (value) async {
+                    final language = value == 'auto' ? null : value;
+                    setState(() => _changingLanguage = true);
+                    try {
+                      await getIt<SettingsStore>().setAudioLanguage(language);
+                      _requestedLanguage = language;
+                      store.setLanguage(language);
+                    } on SpeechModelException catch (error) {
+                      if (error.problem == SpeechModelProblem.incompatible ||
+                          error.problem == SpeechModelProblem.notReady) {
+                        _requestedLanguage = language;
+                        store.setLanguage(language);
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              speechModelError(l10n, error),
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              speechModelError(l10n, error),
+                            ),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(
+                          () => _changingLanguage = false,
+                        );
+                      }
+                    }
+                  },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            l10n.speechModelStorageSummary(
+              localModelSize(context, store.installedBytes),
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.lg),
+          if (store.error != null && !store.busy)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => store.load(_requestedLanguage),
+                child: Text(l10n.retry),
+              ),
+            ),
+          AbsorbPointer(
+            absorbing: _changingLanguage,
+            child: SpeechModelCatalog(store: store),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(l10n.retryRecordings),
+            children: [
+              Text(l10n.transcriptionRecoveryHelp),
+              const SizedBox(height: AppSpacing.sm),
+              if (_retrying) const LinearProgressIndicator(),
+              OutlinedButton(
+                onPressed: _retrying || store.busy || !store.activeReady
+                    ? null
+                    : () async {
+                        setState(() => _retrying = true);
+                        try {
+                          await getIt<LocalDataStore>().retryRecordings();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  l10n.transcriptionRecoveryDone,
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  speechModelError(l10n, error),
+                                ),
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() => _retrying = false);
+                          }
+                        }
+                      },
+                child: Text(l10n.retryRecordings),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

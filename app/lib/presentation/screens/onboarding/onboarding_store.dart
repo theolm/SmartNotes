@@ -8,6 +8,8 @@ import 'package:smartnotes/domain/entities/local_ai_model.dart';
 import 'package:smartnotes/domain/services/i_embedding_model_service.dart';
 import 'package:smartnotes/presentation/app_store.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_store.dart';
+import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
+import 'package:smartnotes/domain/entities/embedding_model.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/speech_models_store.dart';
 import 'package:smartnotes/data/services/processing_feedback_service.dart';
@@ -31,10 +33,14 @@ abstract class _OnboardingStore with Store {
     this.formatting, {
     ModelDownloadsStore? downloads,
     ProcessingFeedbackService? processingFeedback,
+    // Passed through the public MobX alias by generated DI.
+    // ignore: unused_element_parameter
+    this.embeddings,
   }) : downloads = downloads ?? ModelDownloadsStore.unsupported(),
        _processingFeedback =
            processingFeedback ?? ProcessingFeedbackService.unsupported();
   final ModelDownloadsStore downloads;
+  final EmbeddingModelsStore? embeddings;
   final SettingsStore _settings;
   final AppStore _app;
   final IEmbeddingModelService _embeddingModels;
@@ -59,7 +65,12 @@ abstract class _OnboardingStore with Store {
       _settings.markProcessingNotificationPromptHandled();
   void browseJournal() => _app.browseExistingJournal();
   @computed
-  LocalAiModel get model => _embeddingModels.model;
+  LocalAiModel get model =>
+      EmbeddingModel.find(embeddings?.activeId ?? '') ?? _embeddingModels.model;
+  @computed
+  bool get selectedEmbeddingReady => embeddings == null
+      ? embeddingModelReady
+      : embeddings!.ready(embeddings!.activeId);
   @computed
   bool get modelReady => speech.activeReady;
   @computed
@@ -68,7 +79,7 @@ abstract class _OnboardingStore with Store {
   bool get currentModelReady => switch (step) {
     OnboardingStep.speech => modelReady,
     OnboardingStep.formatting => formattingReady,
-    OnboardingStep.embedding => embeddingModelReady,
+    OnboardingStep.embedding => selectedEmbeddingReady,
     OnboardingStep.welcome || OnboardingStep.language => false,
   };
   @observable
@@ -80,7 +91,8 @@ abstract class _OnboardingStore with Store {
   @observable
   ModelTransferState? embeddingTransferState;
   @computed
-  bool get isDownloading => embeddingDownloading;
+  bool get isDownloading =>
+      embeddingDownloading || embeddings?.downloadingId != null;
   @observable
   int downloadedBytes = 0;
   @computed
@@ -118,6 +130,7 @@ abstract class _OnboardingStore with Store {
       if (speech.error != null) throw speech.error!;
       await formatting.load();
       await _checkEmbedding();
+      if (embeddings != null) unawaited(embeddings!.load());
       optionalFormattingEnabled = !_app.wasSetupCompleted;
       if (_app.wasSetupCompleted) {
         step = !modelReady ? OnboardingStep.speech : OnboardingStep.embedding;
@@ -222,10 +235,14 @@ abstract class _OnboardingStore with Store {
     working = embeddingDownloading = true;
     embeddingTransferState = ModelTransferState.downloading;
     try {
-      await _embeddingModels.download(
-        onProgress: (received, _) =>
-            runInAction(() => downloadedBytes = received),
-      );
+      if (embeddings != null) {
+        await embeddings!.download(model.id);
+      } else {
+        await _embeddingModels.download(
+          onProgress: (received, _) =>
+              runInAction(() => downloadedBytes = received),
+        );
+      }
       embeddingModelReady = await _embeddingModels.isReady();
       embeddingTransferState = embeddingModelReady
           ? ModelTransferState.completed
@@ -247,7 +264,7 @@ abstract class _OnboardingStore with Store {
   @action
   Future<bool> finish() async {
     if (isBusy || error == OnboardingFailure.load) return false;
-    if (!modelReady || !embeddingModelReady) {
+    if (!modelReady || !selectedEmbeddingReady) {
       step = !modelReady ? OnboardingStep.speech : OnboardingStep.embedding;
       error = OnboardingFailure.modelDownload;
       return false;

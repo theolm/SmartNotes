@@ -38,5 +38,13 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+    if target.name == 'whisper_ggml'
+      target.build_configurations.each do |config|
+        # Keep Whisper's GGML private. Otherwise dyld can bind llama.cpp's weak
+        # CPU symbols to this different GGML version (BERT inference aborts).
+        # The whisper_* API stays exported for the app's language pre-pass.
+        config.build_settings['UNEXPORTED_SYMBOLS_FILE'] = File.expand_path('../native/whisper_private_symbols.txt', __dir__)
+      end
+    end
   end
 end

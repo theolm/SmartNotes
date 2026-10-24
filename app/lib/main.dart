@@ -16,6 +16,10 @@ import 'package:smartnotes/data/services/processing_feedback_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+      ['EmbeddingGemma 300M'],
+      await rootBundle.loadString('assets/licenses/embeddinggemma-NOTICE.txt'),
+    );
     yield LicenseEntryWithLineBreaks([
       'Whisper model',
     ], await rootBundle.loadString('assets/licenses/whisper-model-MIT.txt'));

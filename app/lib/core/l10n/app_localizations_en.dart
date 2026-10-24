@@ -9,6 +9,104 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get embeddingCatalogTitle => 'Available models';
+
+  @override
+  String get embeddingModelsTitle => 'Search model';
+
+  @override
+  String get embeddingModelConfirm => 'Continue';
+
+  @override
+  String embeddingModelSwitchTitle(String modelName) {
+    return 'Use $modelName?';
+  }
+
+  @override
+  String get embeddingModelActiveTitle => 'Active model';
+
+  @override
+  String get embeddingModelCheckingSelection => 'Checking active model…';
+
+  @override
+  String get embeddingModelReady => 'Ready';
+
+  @override
+  String get embeddingModelDownloadNeeded => 'Download needed';
+
+  @override
+  String get embeddingModelRepairNeeded => 'Needs repair';
+
+  @override
+  String get embeddingModelManage => 'Manage search model';
+
+  @override
+  String get embeddingModelsUnavailable => 'Unavailable models';
+
+  @override
+  String get embeddingModelSwitchingFromActive =>
+      'Your current model stays active until the new one is ready.';
+
+  @override
+  String get embeddingModelTermsTitle => 'Gemma Terms of Use';
+
+  @override
+  String get embeddingModelTermsMessage =>
+      'By continuing, you agree to the Gemma Terms of Use below, including the use restrictions in section 3.2 and the incorporated Prohibited Use Policy. Model installation does not upload your journal.';
+
+  @override
+  String get embeddingModelDownloading => 'Downloading…';
+
+  @override
+  String get embeddingCatalogHelp =>
+      'Install more than one model and choose which one powers search by meaning. Changing models rebuilds the semantic index; your notes and word search stay available.';
+
+  @override
+  String get embeddingModelSwitching =>
+      'Preparing the new search model. You can keep using your journal.';
+
+  @override
+  String get embeddingModelSwitchConfirmation =>
+      'Changing the search model rebuilds the semantic index in the background. Your notes, recordings and word search are preserved. Meaning-based results may be incomplete until indexing finishes.';
+
+  @override
+  String get embeddingModelActivationFailed =>
+      'Could not activate this search model. The previous model and index are unchanged.';
+
+  @override
+  String get embeddingModelRemovalFailed =>
+      'Could not remove this model. Select a different active model first and try again.';
+
+  @override
+  String get embeddingModelUnsupported =>
+      'Not available yet: runtime compatibility and search quality must be validated first.';
+
+  @override
+  String get embeddingModelE5Unavailable =>
+      'Not available yet: tested GGUF conversions did not pass multilingual retrieval validation.';
+
+  @override
+  String embeddingModelDimensions(int count) {
+    return '$count dimensions';
+  }
+
+  @override
+  String get embeddingModelSelect => 'Use model';
+
+  @override
+  String get embeddingModelVerify => 'Verify';
+
+  @override
+  String get embeddingModelDownload => 'Download';
+
+  @override
+  String get embeddingModelResume => 'Resume';
+
+  @override
+  String get embeddingModelDeleteConfirmation =>
+      'Remove the downloaded search model? Your notes and recordings will not be deleted.';
+
+  @override
   String get writeNote => 'Write a note';
 
   @override
@@ -618,7 +716,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineModelsBody =>
-      'Transcription: select and manage Whisper models in Settings.\nFormatting: choose an optional AI organization model in Settings.\nSearch: Qwen3 Embedding 0.6B Q8 · 639.2 MB\nInternet is only needed to download or repair models; notes and queries stay on this device.';
+      'Transcription: select and manage Whisper models in Settings.\nFormatting: choose an optional AI organization model in Settings.\nSearch: install and select an embedding model in Search by meaning settings.\nInternet is only needed to download or repair models; notes and queries stay on this device.';
 
   @override
   String get aiPreviewTitle => 'Preview AI changes';
@@ -680,7 +778,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get embeddingModelMissing =>
-      'The offline search model is missing or damaged. Open model setup in Settings to download it. Text search and saved notes are still available.';
+      'The offline search model is missing or damaged. Open Search model in Settings to repair or replace it. Word search and saved notes are still available.';
 
   @override
   String get indexIncomplete =>
@@ -1169,6 +1267,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get textSearch => 'Text';
+
+  @override
+  String get embeddingModelSelectionHelp =>
+      'Find journal entries by meaning, entirely on this device.';
 
   @override
   String get semanticSearch => 'Semantic';

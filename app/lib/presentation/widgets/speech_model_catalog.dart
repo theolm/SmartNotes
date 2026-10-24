@@ -9,6 +9,7 @@ import 'package:smartnotes/presentation/screens/settings/speech_models_store.dar
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
 import 'package:smartnotes/presentation/widgets/local_model_size.dart';
 import 'package:smartnotes/presentation/widgets/model_download_notice.dart';
+import 'package:smartnotes/presentation/widgets/model_catalog_tile.dart';
 
 String speechModelError(AppLocalizations l10n, Object error) {
   if (error is SpeechModelException) {
@@ -38,18 +39,13 @@ class SpeechModelCatalog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ModelDownloadNotice(store: store.downloads),
-            Text(
-              switch (recommendation.reason) {
-                RecommendationReason.unknown => l10n.speechModelEstimateUnknown,
-                RecommendationReason.economical =>
-                  l10n.speechModelEstimateEconomical,
-                RecommendationReason.balanced =>
-                  l10n.speechModelEstimateBalanced,
-                RecommendationReason.powerful =>
-                  l10n.speechModelEstimatePowerful,
-              },
-              style: text.bodyLarge,
-            ),
+            Text(switch (recommendation.reason) {
+              RecommendationReason.unknown => l10n.speechModelEstimateUnknown,
+              RecommendationReason.economical =>
+                l10n.speechModelEstimateEconomical,
+              RecommendationReason.balanced => l10n.speechModelEstimateBalanced,
+              RecommendationReason.powerful => l10n.speechModelEstimatePowerful,
+            }, style: text.bodyLarge),
             const SizedBox(height: AppSpacing.sm),
             Text(l10n.speechModelEstimateDisclaimer, style: text.bodyMedium),
             if (store.activeUnavailable) ...[
@@ -103,16 +99,12 @@ class _ModelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
     return Observer(
       builder: (_) {
         final installed = store.ready(model.id);
         final active = store.activeReady && store.activeId == model.id;
         final compatible = model.supports(store.language);
         final state = store.states[model.id] ?? SpeechDownloadState.available;
-        final activating = store.activatingId == model.id;
-        final canActivate = installed && compatible && !active && !store.busy;
         final coverage = model.englishOnly
             ? l10n.speechModelEnglish
             : store.language == null
@@ -120,185 +112,62 @@ class _ModelRow extends StatelessWidget {
             : l10n.speechModelMultilingual(
                 audioLanguageOptions[store.language] ?? store.language!,
               );
-        return Padding(
+        return ModelCatalogTile(
           key: ValueKey('model-row-${model.id}'),
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Container(
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: active ? colors.primary : colors.outlineVariant,
-                width: active ? 2 : 1,
-              ),
-            ),
-            child: Material(
-              type: MaterialType.transparency,
-              borderRadius: BorderRadius.circular(11),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: canActivate ? () => store.activate(model.id) : null,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                    AppSpacing.md,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              alignment: Alignment.topCenter,
-                              child:
-                                  active ||
-                                      model.id == store.recommendation.model.id
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: AppSpacing.xs,
-                                      ),
-                                      child: Wrap(
-                                        spacing: AppSpacing.md,
-                                        runSpacing: AppSpacing.xs,
-                                        children: [
-                                          if (model.id ==
-                                              store.recommendation.model.id)
-                                            Text(
-                                              l10n.speechModelRecommended,
-                                              style: text.labelMedium?.copyWith(
-                                                color: colors.primary,
-                                              ),
-                                            ),
-                                          if (active)
-                                            TweenAnimationBuilder<double>(
-                                              tween: Tween(
-                                                begin: 0,
-                                                end: 1,
-                                              ),
-                                              duration: const Duration(
-                                                milliseconds: 160,
-                                              ),
-                                              curve: Curves.easeOutCubic,
-                                              builder:
-                                                  (context, value, child) =>
-                                                      Opacity(
-                                                        opacity: value,
-                                                        child: child,
-                                                      ),
-                                              child: Text(
-                                                l10n.speechModelActive,
-                                                style: text.labelMedium
-                                                    ?.copyWith(
-                                                      color: colors.primary,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                            Text(model.name, style: text.titleMedium),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${localModelSize(context, model.bytes)} · ${model.quantization}',
-                              style: text.bodySmall,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    coverage,
-                                    style: text.titleSmall,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: l10n.speechModelLanguages,
-                                  onPressed: () =>
-                                      _showLanguages(context, l10n),
-                                  icon: const Icon(
-                                    Icons.info_outline,
-                                    size: 20,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(_benefit(l10n), style: text.bodyMedium),
-                            if (!compatible) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                l10n.speechModelIncompatible,
-                                style: text.bodyMedium,
-                              ),
-                            ],
-                            if ([
-                              SpeechModelKind.mediumEnglish,
-                              SpeechModelKind.turbo,
-                              SpeechModelKind.large,
-                            ].contains(model.kind)) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                l10n.speechModelHeavyWarning,
-                                style: text.bodyMedium,
-                              ),
-                            ],
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              _status(l10n, state, installed),
-                              style: text.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      _action(
-                        context,
-                        l10n,
-                        state,
-                        installed,
-                        active,
-                        activating,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          name: model.name,
+          metadata:
+              '${localModelSize(context, model.bytes)} · ${model.quantization}',
+          active: active,
+          activeLabel: l10n.speechModelActive,
+          recommendedLabel: model.id == store.recommendation.model.id
+              ? l10n.speechModelRecommended
+              : null,
+          onTap: installed && compatible && !active && !store.busy
+              ? () => store.activate(model.id)
+              : null,
+          detailsTitle: coverage,
+          description: _benefit(l10n),
+          warnings: [
+            if (!compatible) l10n.speechModelIncompatible,
+            if ([
+              SpeechModelKind.mediumEnglish,
+              SpeechModelKind.turbo,
+              SpeechModelKind.large,
+            ].contains(model.kind))
+              l10n.speechModelHeavyWarning,
+          ],
+          status: _status(l10n, state),
+          detailsTooltip: l10n.speechModelLanguages,
+          onDetails: () => _showLanguages(context, l10n),
+          trailing: _action(
+            context,
+            l10n,
+            state,
+            installed,
+            active,
+            store.activatingId == model.id,
           ),
         );
       },
     );
   }
 
-  String _status(
-    AppLocalizations l10n,
-    SpeechDownloadState state,
-    bool installed,
-  ) {
-    return switch (state) {
-      SpeechDownloadState.ready => l10n.speechModelInstalled,
-      SpeechDownloadState.queued => l10n.speechModelQueued,
-      SpeechDownloadState.downloading => l10n.onboardingModelProgress(
-        (((store.received[model.id] ?? 0) / model.bytes) * 100).floor(),
-      ),
-      SpeechDownloadState.verifying => l10n.onboardingModelVerifying,
-      SpeechDownloadState.checking => l10n.onboardingModelVerifying,
-      SpeechDownloadState.failed => l10n.speechModelFailed,
-      SpeechDownloadState.cancelled => l10n.speechModelCancelled,
-      SpeechDownloadState.available =>
-        (store.partial[model.id] ?? 0) > 0
-            ? l10n.speechModelResume
-            : l10n.speechModelAvailable,
-    };
-  }
+  String _status(AppLocalizations l10n, SpeechDownloadState state) =>
+      switch (state) {
+        SpeechDownloadState.ready => l10n.speechModelInstalled,
+        SpeechDownloadState.queued => l10n.speechModelQueued,
+        SpeechDownloadState.downloading => l10n.onboardingModelProgress(
+          (((store.received[model.id] ?? 0) / model.bytes) * 100).floor(),
+        ),
+        SpeechDownloadState.verifying ||
+        SpeechDownloadState.checking => l10n.onboardingModelVerifying,
+        SpeechDownloadState.failed => l10n.speechModelFailed,
+        SpeechDownloadState.cancelled => l10n.speechModelCancelled,
+        SpeechDownloadState.available =>
+          (store.partial[model.id] ?? 0) > 0
+              ? l10n.speechModelResume
+              : l10n.speechModelAvailable,
+      };
 
   Widget _action(
     BuildContext context,
@@ -309,70 +178,47 @@ class _ModelRow extends StatelessWidget {
     bool activating,
   ) {
     if (state == SpeechDownloadState.checking) {
-      return const SizedBox.square(
-        dimension: 24,
-        child: CircularProgressIndicator(),
+      return ModelCatalogActionButton(
+        action: ModelCatalogAction.checking,
+        tooltip: l10n.onboardingModelVerifying,
       );
     }
     if (activating) {
-      return _pendingAction(
-        context,
-        key: ValueKey('activating-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('activating-${model.id}'),
+        action: ModelCatalogAction.pending,
         tooltip: l10n.speechModelActivating,
-        onPressed: null,
       );
     }
     if (state == SpeechDownloadState.queued ||
         state == SpeechDownloadState.downloading ||
         state == SpeechDownloadState.verifying) {
-      return _pendingAction(
-        context,
-        key: ValueKey('cancel-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('cancel-${model.id}'),
+        action: ModelCatalogAction.pending,
         tooltip: l10n.cancel,
         onPressed: store.busy ? null : () => store.cancelDownload(model.id),
       );
     }
     if (installed) {
-      return IconButton(
-        key: ValueKey('delete-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('delete-${model.id}'),
+        action: ModelCatalogAction.delete,
         tooltip: active ? l10n.speechModelActiveDeleteHint : l10n.delete,
         onPressed: active || store.busy
             ? null
             : () => _confirmDelete(context, l10n),
-        icon: const Icon(Icons.delete_outline),
       );
     }
-    final partial = (store.partial[model.id] ?? 0) > 0;
-    return IconButton(
-      key: ValueKey('download-${model.id}'),
+    return ModelCatalogActionButton(
+      buttonKey: ValueKey('download-${model.id}'),
+      action: ModelCatalogAction.download,
       tooltip: state == SpeechDownloadState.failed
           ? l10n.speechModelRetry
-          : partial
+          : (store.partial[model.id] ?? 0) > 0
           ? l10n.speechModelResumeDownload
           : l10n.speechModelDownload,
       onPressed: store.busy ? null : () => store.downloadOne(model.id),
-      icon: const Icon(Icons.download_outlined),
-    );
-  }
-
-  Widget _pendingAction(
-    BuildContext context, {
-    Key? key,
-    required String tooltip,
-    required VoidCallback? onPressed,
-  }) {
-    return IconButton(
-      key: key,
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
     );
   }
 

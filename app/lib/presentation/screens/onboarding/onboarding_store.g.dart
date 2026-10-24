@@ -16,6 +16,14 @@ mixin _$OnboardingStore on _OnboardingStore, Store {
     () => super.model,
     name: '_OnboardingStore.model',
   )).value;
+  Computed<bool>? _$selectedEmbeddingReadyComputed;
+
+  @override
+  bool get selectedEmbeddingReady =>
+      (_$selectedEmbeddingReadyComputed ??= Computed<bool>(
+        () => super.selectedEmbeddingReady,
+        name: '_OnboardingStore.selectedEmbeddingReady',
+      )).value;
   Computed<bool>? _$modelReadyComputed;
 
   @override
@@ -334,6 +342,7 @@ working: ${working},
 audioLanguage: ${audioLanguage},
 error: ${error},
 model: ${model},
+selectedEmbeddingReady: ${selectedEmbeddingReady},
 modelReady: ${modelReady},
 formattingReady: ${formattingReady},
 currentModelReady: ${currentModelReady},

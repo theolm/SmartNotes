@@ -27,6 +27,8 @@ _Avoid_: Document, message, account-owned note.
 
 **Embedding model**: Downloaded retrieval-model weights that represent notes and queries for on-device search by meaning. It is required to finish setup, but its absence never prevents an existing journal from being read or searched by words.
 
+**Active embedding model**: The explicitly selected installed search model. Several models may be installed; downloading one never selects it. Changing the active model rebuilds only the semantic index in the background, preserving journal entries, recordings, and word search. An unavailable catalog candidate cannot be installed or selected.
+
 **Current note**: The journaler's saved text, initially the original transcription and later any accepted edits or AI transformation. An intentionally empty edited note is distinct from an untouched transcription.
 
 **AI action**: An optional transformation of the current note, such as an organized note, journal narrative, or key points. It must preserve source facts and is previewed before acceptance.

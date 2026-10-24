@@ -13,6 +13,7 @@ import 'package:sqlite3_vec/sqlite3_vec.dart';
 
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/embedding_pipeline.dart';
+import 'package:smartnotes/domain/entities/embedding_model.dart';
 import 'package:smartnotes/domain/entities/search_index_status.dart';
 import 'package:smartnotes/domain/entities/search_result.dart';
 import 'package:smartnotes/domain/entities/search_options.dart';
@@ -21,6 +22,11 @@ import 'package:smartnotes/domain/entities/search_options.dart';
 @singleton
 class LocalDatabase {
   LocalDatabase();
+  LocalDatabase.forTesting({required List<EmbeddingModel> embeddingCatalog})
+    // Keep the fixture argument public and the runtime registry private.
+    // ignore: prefer_initializing_formals
+    : _embeddingCatalog = embeddingCatalog;
+  List<EmbeddingModel> _embeddingCatalog = EmbeddingModel.catalog;
 
   SendPort? _worker;
   Future<void>? _opening;
@@ -56,6 +62,17 @@ class LocalDatabase {
 
   static const embeddingModel = EmbeddingPipeline.id;
   static const embeddingDimensions = EmbeddingPipeline.dimensions;
+
+  EmbeddingModel _embeddingProfile = EmbeddingModel.qwen;
+  EmbeddingModel get embeddingProfile => _embeddingProfile;
+
+  /// The database is the durable authority for both selection and index identity.
+  /// One transaction prevents a crash from pairing new weights with old vectors.
+  Future<void> selectEmbeddingModel(EmbeddingModel model) async {
+    final selected = _embeddingCatalog.firstWhere((m) => m.id == model.id);
+    await _request('selectEmbeddingModel', selected.id);
+    _embeddingProfile = selected;
+  }
 
   Stream<SearchIndexStatus> watchIndexStatus() {
     late StreamController<SearchIndexStatus> controller;
@@ -143,6 +160,7 @@ class LocalDatabase {
     _isolate = await Isolate.spawn(_databaseWorker, [
       databasePath,
       ready.sendPort,
+      _embeddingCatalog,
     ]);
     final result = await ready.first as List;
     ready.close();
@@ -152,6 +170,7 @@ class LocalDatabase {
       throw StateError('Could not open the local journal: ${result[1]}');
     }
     _worker = result[1] as SendPort;
+    _embeddingProfile = _embeddingCatalog.firstWhere((m) => m.id == result[2]);
     _path = databasePath;
     // Hash maintenance is resumable and does not delay the first journal read.
     _maintenance =
@@ -204,6 +223,9 @@ class LocalDatabase {
       }
       throw StateError(result[1] as String);
     }
+    if (operation == 'selectEmbeddingModel' && result[1] != true) {
+      return result[1];
+    }
     if (operation == 'save' ||
         operation == 'create' ||
         operation == 'createExclusive' ||
@@ -219,7 +241,9 @@ class LocalDatabase {
       });
       _contentRevision++;
     }
-    if (operation == 'resetIndex') _contentRevision++;
+    if (operation == 'resetIndex' || operation == 'selectEmbeddingModel') {
+      _contentRevision++;
+    }
     if ([
       'save',
       'create',
@@ -229,6 +253,8 @@ class LocalDatabase {
       'index',
       'indexFailed',
       'resetIndex',
+      'selectEmbeddingModel',
+      'retryIndexFailures',
     ].contains(operation)) {
       _indexChanges.add(null);
     }
@@ -273,7 +299,12 @@ class LocalDatabase {
 
   Future<List<JournalEntry>> pendingEntries({
     bool retryFailures = false,
-  }) async => _decode(await _request('pending', retryFailures));
+    int? limit,
+  }) async => _decode(
+    await _request('pending', {'retryFailures': retryFailures, 'limit': limit}),
+  );
+  Future<void> retryIndexFailures({required int generation}) async =>
+      _request('retryIndexFailures', generation);
   Future<void> indexEntry(
     JournalEntry entry,
     List<List<double>> vectors, {
@@ -281,7 +312,7 @@ class LocalDatabase {
     List<({String text, int start})> passages = const [],
   }) async => _request('index', {
     'id': entry.id,
-    'hash': entrySourceHash(entry),
+    'source': entry.toJson(),
     'vectors': vectors,
     'passages': [
       for (final p in passages) {'text': p.text, 'start': p.start},
@@ -293,7 +324,7 @@ class LocalDatabase {
     required int generation,
   }) async => _request('indexFailed', {
     'id': entry.id,
-    'hash': entrySourceHash(entry),
+    'source': entry.toJson(),
     'generation': generation,
   });
   Future<void> resetIndex() async => _request('resetIndex');
@@ -332,8 +363,13 @@ class LocalDatabase {
   Future<List<SearchResult>> searchVector(
     List<double> vector, {
     SearchOptions options = const SearchOptions(),
+    int? generation,
   }) async =>
-      ((await _request('vector', {'vector': vector, ...options.toMap()}))
+      ((await _request('vector', {
+                'vector': vector,
+                'generation': generation,
+                ...options.toMap(),
+              }))
               as List)
           .map((row) => SearchResult.fromRow(row as Map))
           .toList();
@@ -372,6 +408,15 @@ String _hash(Map<String, dynamic> entry) =>
     sha256.convert(utf8.encode(_source(entry))).toString();
 
 void _databaseWorker(List<dynamic> startup) {
+  final catalog = startup[2] as List<EmbeddingModel>;
+  EmbeddingModel? findModel(String id) {
+    for (final model in catalog) {
+      if (model.id == id) return model;
+    }
+    return null;
+  }
+
+  var embeddingProfile = EmbeddingModel.qwen;
   final databasePath = startup[0] as String;
   final ready = startup[1] as SendPort;
   final commands = ReceivePort();
@@ -385,11 +430,24 @@ void _databaseWorker(List<dynamic> startup) {
     db.execute('PRAGMA journal_mode = WAL');
     db.execute('PRAGMA busy_timeout = 5000');
     final version = db.select('PRAGMA user_version').single.values.first as int;
-    if (version > 2) {
+    if (version > 3) {
       throw StateError('This journal needs a newer app version.');
     }
     db.execute('BEGIN IMMEDIATE');
     try {
+      db.execute('''CREATE TABLE IF NOT EXISTS embedding_selection (
+        singleton INTEGER PRIMARY KEY CHECK(singleton = 1), model_id TEXT NOT NULL
+      )''');
+      final selection = db.select('SELECT model_id FROM embedding_selection');
+      if (selection.isNotEmpty) {
+        final selected = findModel(selection.single['model_id'] as String);
+        if (selected == null) throw StateError('Unsupported search model.');
+        embeddingProfile = selected;
+      } else {
+        db.execute('INSERT INTO embedding_selection VALUES (1, ?)', [
+          embeddingProfile.id,
+        ]);
+      }
       db.execute('''
       CREATE TABLE IF NOT EXISTS entries (
         id TEXT PRIMARY KEY, entry_date TEXT NOT NULL,
@@ -418,7 +476,7 @@ void _databaseWorker(List<dynamic> startup) {
         source_hash TEXT NOT NULL
       );
       CREATE VIRTUAL TABLE IF NOT EXISTS entry_vectors USING vec0(
-        embedding float[512] distance_metric=cosine
+        embedding float[${embeddingProfile.dimensions}] distance_metric=cosine
       );
       CREATE TABLE IF NOT EXISTS embedding_pipeline (
         singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
@@ -432,15 +490,18 @@ void _databaseWorker(List<dynamic> startup) {
         'SELECT identity FROM embedding_pipeline WHERE singleton = 1',
       );
       if (pipeline.isEmpty ||
-          pipeline.single['identity'] != EmbeddingPipeline.id) {
-        db.execute('DELETE FROM entry_vectors');
+          pipeline.single['identity'] != embeddingProfile.pipelineId) {
+        db.execute('DROP TABLE entry_vectors');
+        db.execute(
+          'CREATE VIRTUAL TABLE entry_vectors USING vec0(embedding float[${embeddingProfile.dimensions}] distance_metric=cosine)',
+        );
         db.execute('DELETE FROM chunks');
         db.execute('DELETE FROM indexed_entries');
         db.execute('DELETE FROM failed_index_entries');
         db.execute(
           '''INSERT INTO embedding_pipeline VALUES (1, ?, 1)
           ON CONFLICT(singleton) DO UPDATE SET identity=excluded.identity, generation=generation+1''',
-          [EmbeddingPipeline.id],
+          [embeddingProfile.pipelineId],
         );
         // Invalidate vectors atomically, then repair hashes in short batches.
         // Persist IDs so an interrupted upgrade resumes safely on next launch.
@@ -448,7 +509,7 @@ void _databaseWorker(List<dynamic> startup) {
           'INSERT OR IGNORE INTO source_hash_migration SELECT id FROM entries',
         );
       }
-      db.execute('PRAGMA user_version = 2');
+      db.execute('PRAGMA user_version = 3');
       // Staging is never journal data; discard an interrupted unpublished import.
       db.execute('DROP TABLE IF EXISTS import_staging');
       db.execute('COMMIT');
@@ -456,7 +517,7 @@ void _databaseWorker(List<dynamic> startup) {
       db.execute('ROLLBACK');
       rethrow;
     }
-    ready.send([true, commands.sendPort]);
+    ready.send([true, commands.sendPort, embeddingProfile.id]);
   } catch (error) {
     if (databaseOpened) db.close();
     ready.send([false, 'Local journal storage is unavailable.']);
@@ -552,6 +613,8 @@ void _databaseWorker(List<dynamic> startup) {
             'index',
             'indexFailed',
             'resetIndex',
+            'selectEmbeddingModel',
+            'retryIndexFailures',
           }.contains(op)) {
         await publishing!.catchError((Object _) {});
       }
@@ -748,6 +811,7 @@ void _databaseWorker(List<dynamic> startup) {
                   ),
                 );
         case 'pending':
+          final options = arg as Map;
           result = decode(
             db.select(
               '''SELECT e.json FROM entries e
@@ -755,12 +819,18 @@ void _databaseWorker(List<dynamic> startup) {
             LEFT JOIN failed_index_entries f ON f.id = e.id AND f.source_hash = e.source_hash
              WHERE i.id IS NULL AND json_extract(e.json, '\$.status') = 'completed'
              AND NOT EXISTS (SELECT 1 FROM source_hash_migration m WHERE m.id=e.id)
-            AND (? OR f.id IS NULL) ORDER BY e.entry_date''',
-              [arg == true ? 1 : 0],
+            AND (? OR f.id IS NULL) ORDER BY e.entry_date LIMIT ?''',
+              [
+                options['retryFailures'] == true ? 1 : 0,
+                options['limit'] ?? -1,
+              ],
             ),
           );
         case 'indexFailed':
           final data = arg as Map;
+          data['hash'] = _hash(
+            Map<String, dynamic>.from(data['source'] as Map),
+          );
           if (data['generation'] != null &&
               data['generation'] !=
                   db
@@ -773,8 +843,18 @@ void _databaseWorker(List<dynamic> startup) {
             SELECT id, source_hash FROM entries WHERE id = ? AND source_hash = ?''',
             [data['id'], data['hash']],
           );
+        case 'retryIndexFailures':
+          if (arg ==
+              db
+                  .select('SELECT generation FROM embedding_pipeline')
+                  .single['generation']) {
+            db.execute('DELETE FROM failed_index_entries');
+          }
         case 'index':
           final data = arg as Map;
+          data['hash'] = _hash(
+            Map<String, dynamic>.from(data['source'] as Map),
+          );
           if (data['generation'] != null &&
               data['generation'] !=
                   db
@@ -799,7 +879,7 @@ void _databaseWorker(List<dynamic> startup) {
               for (var index = 0; index < vectors.length; index++) {
                 final values = vectors[index];
                 final vector = (values as List).cast<double>();
-                if (vector.length != LocalDatabase.embeddingDimensions ||
+                if (vector.length != embeddingProfile.dimensions ||
                     vector.any((v) => !v.isFinite) ||
                     vector.every((v) => v == 0)) {
                   throw StateError('Invalid embedding.');
@@ -829,11 +909,40 @@ void _databaseWorker(List<dynamic> startup) {
               db.execute('INSERT INTO indexed_entries VALUES (?, ?, ?, ?)', [
                 id,
                 data['hash'],
-                LocalDatabase.embeddingModel,
-                LocalDatabase.embeddingDimensions,
+                embeddingProfile.pipelineId,
+                embeddingProfile.dimensions,
               ]);
             });
           }
+        case 'selectEmbeddingModel':
+          final selected = findModel(arg as String);
+          if (selected == null ||
+              !selected.available ||
+              selected.maxDistance == null) {
+            throw StateError('Unsupported search model.');
+          }
+          if (selected.pipelineId == embeddingProfile.pipelineId) {
+            result = false;
+            break;
+          }
+          transaction(() {
+            db.execute('DROP TABLE entry_vectors');
+            db.execute(
+              'CREATE VIRTUAL TABLE entry_vectors USING vec0(embedding float[${selected.dimensions}] distance_metric=cosine)',
+            );
+            db.execute('DELETE FROM chunks');
+            db.execute('DELETE FROM indexed_entries');
+            db.execute('DELETE FROM failed_index_entries');
+            db.execute('UPDATE embedding_selection SET model_id=?', [
+              selected.id,
+            ]);
+            db.execute(
+              'UPDATE embedding_pipeline SET identity=?, generation=generation+1',
+              [selected.pipelineId],
+            );
+          });
+          embeddingProfile = selected;
+          result = true;
         case 'resetIndex':
           transaction(() {
             db.execute('UPDATE embedding_pipeline SET generation=generation+1');
@@ -844,8 +953,16 @@ void _databaseWorker(List<dynamic> startup) {
           });
         case 'vector':
           final data = arg as Map;
+          if (data['generation'] != null &&
+              data['generation'] !=
+                  db
+                      .select('SELECT generation FROM embedding_pipeline')
+                      .single['generation']) {
+            result = <Object>[];
+            break;
+          }
           final vector = (data['vector'] as List).cast<double>();
-          if (vector.length != LocalDatabase.embeddingDimensions ||
+          if (vector.length != embeddingProfile.dimensions ||
               vector.any((v) => !v.isFinite) ||
               vector.every((v) => v == 0)) {
             throw StateError('Invalid query embedding.');
@@ -876,7 +993,7 @@ void _databaseWorker(List<dynamic> startup) {
           ''',
               [
                 bytes.buffer.asUint8List(),
-                EmbeddingPipeline.maxDistance,
+                embeddingProfile.maxDistance,
                 data['limit'],
                 data['offset'],
               ],

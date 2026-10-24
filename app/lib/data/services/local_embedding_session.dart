@@ -1,5 +1,5 @@
 import 'package:llamadart/llamadart.dart';
-import 'package:smartnotes/domain/entities/embedding_pipeline.dart';
+import 'package:smartnotes/domain/entities/embedding_model.dart';
 
 abstract class LocalEmbeddingSession {
   Future<void> load(String path);
@@ -9,13 +9,15 @@ abstract class LocalEmbeddingSession {
 }
 
 class LlamaEmbeddingSession implements LocalEmbeddingSession {
+  LlamaEmbeddingSession({this.model = EmbeddingModel.qwen});
+  final EmbeddingModel model;
   final _engine = LlamaEngine(LlamaBackend());
   @override
   Future<void> load(String path) async {
     await _engine.setModel(
       LlamaModel(ModelSource.path(path)),
-      params: const ModelParams(
-        contextSize: EmbeddingPipeline.contextTokens,
+      params: ModelParams(
+        contextSize: model.contextTokens,
         device: ComputeDevice.cpu,
         gpuLayers: 0,
         numberOfThreads: 4,
@@ -25,9 +27,9 @@ class LlamaEmbeddingSession implements LocalEmbeddingSession {
       ),
     );
     final metadata = await _engine.getMetadata();
-    // Official Qwen GGUF must specify LAST (3), never silently use mean pooling.
-    if (metadata['general.architecture'] != 'qwen3' ||
-        metadata['qwen3.pooling_type'] != '3') {
+    // Check the representation contract; never silently accept a default pool.
+    if (metadata['general.architecture'] != model.architecture ||
+        metadata['${model.architecture}.pooling_type'] != '${model.pooling}') {
       throw StateError('Unsupported embedding model metadata.');
     }
   }

@@ -117,11 +117,11 @@ class _LocalDataSettingsState extends State<LocalDataSettings> {
                       ? null
                       : () async {
                           await context.pushRoute(
-                            OnboardingRoute(fromSettings: true),
+                            const EmbeddingModelsRoute(),
                           );
                           await _store.load();
                         },
-                  child: Text(l10n.modelSetup),
+                  child: Text(l10n.embeddingModelManage),
                 ),
               const SizedBox(height: AppSpacing.sm),
               Semantics(
@@ -145,6 +145,14 @@ class _LocalDataSettingsState extends State<LocalDataSettings> {
                 ),
               ] else if (!_store.modelReady)
                 Text(l10n.embeddingModelMissing),
+              if (_store.modelReady && _store.indexStatus.pending > 0)
+                LinearProgressIndicator(
+                  value:
+                      _store.indexStatus.indexed /
+                      (_store.indexStatus.indexed +
+                          _store.indexStatus.pending +
+                          _store.indexStatus.failed),
+                ),
               ...[
                 const SizedBox(height: AppSpacing.xl),
                 if (_store.indexStatus.isIncomplete) ...[

@@ -8,6 +8,8 @@ import 'package:smartnotes/domain/entities/device_profile.dart';
 import 'package:smartnotes/domain/entities/formatting_model.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_screen.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_store.dart';
+import 'package:smartnotes/presentation/widgets/model_catalog_tile.dart';
+import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
 import '../helpers/local_services.dart';
 
 class _Device extends DeviceProfileService {
@@ -69,6 +71,8 @@ void main() {
   ) async {
     await render(tester);
     expect(find.text('AI organization'), findsOneWidget);
+    expect(find.byType(ModelSettingsPage), findsOneWidget);
+    expect(find.byType(ModelCatalogTile), findsNWidgets(2));
     expect(find.text('Recommended for this device'), findsOneWidget);
     expect(find.text('Qwen3 1.7B Q4_K_M'), findsOneWidget);
     expect(find.text('Qwen3 0.6B Q8'), findsOneWidget);

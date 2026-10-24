@@ -10,6 +10,8 @@ import 'package:smartnotes/domain/services/i_speech_model_service.dart';
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
+import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
+import 'package:smartnotes/presentation/widgets/embedding_model_status.dart';
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
 
 @RoutePage()
@@ -23,16 +25,19 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final store = getIt<SettingsStore>();
   final data = getIt<LocalDataStore>();
+  final embeddings = getIt<EmbeddingModelsStore>();
 
   @override
   void initState() {
     super.initState();
     unawaited(data.load());
+    unawaited(embeddings.load());
   }
 
   Future<void> _open(PageRouteInfo route) async {
     await context.pushRoute(route);
     if (route is SpeechModelsRoute) await store.load();
+    if (route is EmbeddingModelsRoute) await embeddings.load();
     if (mounted) setState(() {});
   }
 
@@ -112,6 +117,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : formatting.activeModel?.name ??
                               l10n.aiOrganizationNotConfigured,
                     () => _open(const FormattingModelsRoute()),
+                  ),
+                  _destination(
+                    l10n.embeddingModelsTitle,
+                    embeddings.activeModel == null
+                        ? embeddingModelStatus(l10n, embeddings)
+                        : '${embeddings.activeModel!.name} · ${embeddingModelStatus(l10n, embeddings)}',
+                    () => _open(const EmbeddingModelsRoute()),
                   ),
                   _destination(
                     l10n.searchSettingsTitle,

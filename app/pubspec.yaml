@@ -70,6 +70,7 @@ flutter:
     - assets/fonts/
     - assets/licenses/whisper-model-MIT.txt
     - assets/licenses/qwen3-model-Apache-2.0.txt
+    - assets/licenses/embeddinggemma-NOTICE.txt
 
   fonts:
     - family: Archivo

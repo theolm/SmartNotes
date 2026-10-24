@@ -15,6 +15,8 @@ import 'package:smartnotes/presentation/screens/settings/data_settings_screens.d
 import 'package:smartnotes/presentation/screens/settings/settings_screen.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
+import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
+import 'package:smartnotes/presentation/stores/model_downloads_store.dart';
 
 import '../helpers/nav_bar_inset.dart';
 import '../helpers/local_services.dart';
@@ -68,6 +70,12 @@ void main() {
         MockJournalLifecycle(),
       ),
     );
+    GetIt.I.registerSingleton<EmbeddingModelsStore>(
+      EmbeddingModelsStore(
+        MemoryEmbeddingModels(),
+        ModelDownloadsStore.unsupported(),
+      ),
+    );
     GetIt.I.registerSingleton<SettingsStore>(
       SettingsStore.forTesting(mockService, mockLocalAuthService)
         ..lockAppAvailable = true,
@@ -87,6 +95,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Transcription'), findsOneWidget);
       expect(find.text('AI organization'), findsOneWidget);
+      expect(find.text('Search model'), findsOneWidget);
+      expect(find.text('Qwen3 Embedding 0.6B Q8 · Ready'), findsOneWidget);
       expect(find.text('Search by meaning'), findsOneWidget);
       await tester.ensureVisible(find.text('Backup and restore'));
       expect(find.text('Backup and restore'), findsOneWidget);
@@ -135,6 +145,7 @@ void main() {
   });
 
   for (final destination in <String, PageRouteInfo>{
+    'Search model': const EmbeddingModelsRoute(),
     'Search by meaning': const SearchSettingsRoute(),
     'Backup and restore': const BackupSettingsRoute(),
   }.entries) {
@@ -146,6 +157,7 @@ void main() {
       await tester.pumpWidget(_TestableSettingsScreen(router: router));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text(destination.key));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(destination.key));
       await tester.pumpAndSettle();
       verify(() => router.push<Object?>(destination.value)).called(1);
@@ -166,9 +178,47 @@ void main() {
     expect(find.text('Indexed: 0 · Pending: 0 · Failed: 0'), findsOneWidget);
     expect(find.text('Export journal'), findsNothing);
     expect(find.text('Rebuild search index'), findsNothing);
+    expect(find.text('Available models'), findsNothing);
+    expect(find.text('Active model'), findsNothing);
+    expect(find.text('Qwen3 Embedding 0.6B Q8'), findsNothing);
+    expect(find.text('Use model'), findsNothing);
     await tester.tap(find.text('Advanced'));
     await tester.pumpAndSettle();
     expect(find.text('Rebuild search index'), findsOneWidget);
+  });
+
+  testWidgets('missing search model links directly to the model screen', (
+    tester,
+  ) async {
+    GetIt.I.unregister<LocalDataStore>();
+    GetIt.I.registerSingleton<LocalDataStore>(
+      LocalDataStore(
+        MemorySearch(),
+        MemoryArchive(),
+        MemoryEmbeddingModels(ready: false),
+        MockJournalLifecycle(),
+      ),
+    );
+    final router = MockRouter();
+    when(
+      () => router.push<Object?>(const EmbeddingModelsRoute()),
+    ).thenAnswer((_) async => null);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: StackRouterScope(
+          controller: router,
+          stateHash: 0,
+          child: const SearchSettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage search model'));
+    await tester.pumpAndSettle();
+    verify(() => router.push<Object?>(const EmbeddingModelsRoute())).called(1);
+    expect(find.text('Use model'), findsNothing);
   });
 
   testWidgets('backup exposes export and import without model maintenance', (

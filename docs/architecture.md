@@ -239,7 +239,9 @@ AutoRoute(page: EntryDetailRoute.page, guards: [LocalLockGuard()]),
 - Enable WAL, foreign keys, and a busy timeout. Version the schema with `PRAGMA user_version`.
 - Store each entry as complete JSON plus a UTC ordering key and source hash.
 - Mirror searchable text in FTS5.
-- Store 512-dimensional cosine embeddings in a `vec0` table linked to chunks and entries.
+- Store cosine embeddings in a `vec0` table linked to chunks and entries. Its
+  dimension follows the active embedding profile (currently 512; the E5 profile
+  uses 384 when validated). Never pad incompatible representations.
 - Record the active embedding pipeline identity and generation separately from notes. A new identity clears only derived data.
 - Store failed index sources against their source hash. Retry them only on an explicit user action.
 - Stage imports in batches of 25 and publish them atomically on a separate WAL connection. Readers continue to see the previous committed journal until publication completes.
@@ -250,6 +252,15 @@ AutoRoute(page: EntryDetailRoute.page, guards: [LocalLockGuard()]),
 - Use `watchAll` for the shared journal feed, ID-scoped changes for ordinary writes, and full reconciliation after import. Discard stale snapshots by revision.
 - Invalidate vectors on content changes, not on date-only changes. A deleted entry must not be resurrected by a late processing update.
 - Changing the embedding model, dimensions, pooling, prompt, chunking, or quantization requires a new pipeline identity and re-embedding. Never compare vectors from different identities.
+- Schema version 3 stores the selected embedding model in `embedding_selection`.
+  This is the durable authority, not a second preference in shared_preferences:
+  selection, pipeline identity, generation, and vector-table recreation commit
+  atomically on the database worker. Existing installations retain Qwen and its
+  pipeline identity. Restart resumes pending work without reverting selection.
+- Every effective model switch clears semantic derived data and failed-source
+  markers, but never entries, recordings, or FTS. Selecting the current model is
+  idempotent. In-flight queries and writes carry an expected generation; the
+  database rejects stale work even when two models have the same dimensions.
 
 Search:
 
@@ -268,7 +279,10 @@ Every model is a pinned artifact with an ID, file name, download URL, byte size,
 
 - Speech: six Whisper artifacts, including English-only and multilingual options.
 - Formatting: two Qwen3 artifacts, one light and one balanced.
-- Embeddings: Qwen3-Embedding 0.6B Q8.
+- Embeddings: Qwen3-Embedding 0.6B Q8 and EmbeddingGemma 300M Q8. The pinned
+  EmbeddingGemma 2 and multilingual-e5-small candidates are visible but cannot be
+  downloaded or activated until runtime and retrieval validation passes. An
+  unvalidated model has no calibrated cutoff. See `embedding-calibration.md`.
 
 Never download from an unpinned `main` revision. Never switch the active model silently. The active model and the audio language are explicit, persisted choices. An English-only speech model can be active only for explicit English.
 
@@ -279,6 +293,11 @@ Never download from an unpinned `main` revision. Never switch the active model s
 - `ModelVerification` persists a versioned receipt containing model ID, file name, digest, size, and modification time. Reuse a receipt only when the stat and catalog metadata match.
 - Verify the full artifact after an interrupted download or a changed file. A cached stat match avoids rehashing readable, unchanged files.
 - Model artifacts are excluded from journal exports and from platform backups as supported by each OS.
+- Downloading a model never selects it. Activation verifies the candidate and
+  runs a small inference preflight under the inference queue before replacing
+  the index. Failed preflight leaves the previous model/index untouched. Active
+  models cannot be removed. Gemma 300M downloads require explicit acceptance of
+  its bundled Terms of Use and incorporated use restrictions.
 
 ### Inference
 
@@ -286,6 +305,12 @@ Never download from an unpinned `main` revision. Never switch the active model s
 - Foreground work (capture, transcription, formatting, user-submitted search) precedes background indexing. Run at most eight foreground jobs before yielding to background work.
 - Jobs must release native memory before releasing the queue lease. A cancelled queued job is skipped before acquiring native resources; a running job must check cancellation at safe boundaries.
 - Run native inference off the UI isolate. Use CPU-only inference. Llama.cpp sessions use four threads; the speech binding stays on its CPU path. Do not add a GPU/NPU backend without deliberate validation.
+- On Apple, keep Whisper's GGML/GGUF and quantization implementation symbols
+  private using the Podfile linker exclusion list in
+  `app/native/whisper_private_symbols.txt`. Otherwise its different GGML version
+  can interpose llama.cpp CPU symbols and abort inference. Preserve the public
+  `whisper_*` API used by language detection. Changes require native process
+  restart and speech/embedding regression tests, not hot reload alone.
 
 Speech:
 
@@ -313,12 +338,29 @@ Formatting:
 
 Embeddings:
 
-- Use raw text, not a chat template. Queries alone receive the retrieval instruction.
-- Use Qwen3-Embedding with last-token pooling. Validate 1,024 native dimensions, slice to 512, then L2-normalize.
-- Chunk documents with real tokenizer counts: 384 tokens per chunk, up to 64 tokens of overlap, within a 1,024-token context.
+- Use raw text, not a chat template. Each typed `EmbeddingModel` defines
+  architecture, pooling, native/stored dimensions, prefixes, context, and cutoff.
+- Qwen uses LAST pooling, 1,024 native dimensions sliced to 512, then L2
+  normalization. Only queries receive its retrieval instruction.
+- Gemma 300M uses MEAN pooling and the verified projection layers, 768 native
+  dimensions sliced to 512, then L2 normalization. Queries use
+  `task: search result | query: `; passages use `title: none | text: `.
+- Chunk documents with real tokenizer counts including document prefixes:
+  384 tokens per chunk, up to 64 tokens of overlap. Context is profile-specific
+  (1,024 for current Qwen/Gemma profiles, 512 for the gated E5 candidate).
 - Index title, current note, and original transcription, omitting empty parts and exact trimmed duplicates.
 - Index in bounded batches, releasing the native session after four chunks so interactive work can take the queue.
+- Fetch pending entries in batches of 25, construct indexing source text off the
+  UI isolate, hash expected index sources on the database worker, and expand
+  Unicode only in bounded windows. Model checks, downloads, verification,
+  switching, and reindexing must never display a blocking progress dialog or
+  disable journal navigation, capture, reading, editing, or FTS. Throttle model
+  progress notifications to at most ten per second plus terminal updates.
 - Use the calibrated absolute distance cutoff for semantic matches. Do not make the cutoff relative to the best hit.
+- Calibrate each pinned model/representation independently on the training
+  split. Keep holdout queries out of threshold selection; report both absent-topic
+  false positives and relevant-note recall. A cutoff-policy-only change does
+  not require generating new embeddings.
 - An embedding failure must not change a successful entry's status or block text search.
 
 ### Application orchestration
@@ -353,12 +395,23 @@ Model checks and journal recovery must never delay route protection or the first
 - One screen file and one store file per feature when the store is screen-scoped.
 - Screens are thin: build layout, bind stores with `Observer`, and forward intent.
 - Use shared widgets for model catalogs, download rows, entry content, players, and common controls.
+- Model settings screens use `ModelSettingsPage` for shared chrome and insets.
+  Speech, formatting and embedding catalogs use `ModelCatalogTile` and
+  `ModelCatalogActionButton`; family-specific policy stays in their catalogs
+  and stores. Embedding row selection confirms index rebuilding, and its
+  information dialog retains explicit verification without blocking progress.
 - Use Material 3 and the theme layer (`lib/core/theme`) for colors, typography, spacing, shapes, system bars, and insets. Do not hardcode colors, font families, or arbitrary sizes in widgets.
 - Use bundled Archivo for UI text and Archivo Black for display headings. Widgets select `TextTheme` roles.
 - All user-facing text must live in `lib/core/l10n/app_en.arb` and be accessed through `AppLocalizations`. Do not display raw store messages; map stable failure codes through a presentation mapper.
 - Use 48dp minimum touch targets, safe-area insets, bounded reading columns, and reduced-motion handling.
 - Use `ThemeMode.system` for light and dark themes. Visual hierarchy relies on whitespace and tonal surfaces; elevation and shadows remain at zero.
 - Keep model download rows consistent between onboarding and settings: name, size, progress, cancel, resume, retry, verify, delete, and active state.
+- Embedding downloads and explicit model selection live on the guarded
+  `EmbeddingModelsRoute`, reached from Settings → Search model. Settings names
+  the persisted active model and readiness, never an assumed default while
+  loading. The shared catalog highlights the active selection and collapses
+  unavailable candidates. Search by meaning settings contain only explanations,
+  index progress/repair and, when needed, a direct model-management link.
 - For destructive or irreversible actions, confirm first and keep the saved state unchanged on failure.
 - Use `auto_route` transitions. Do not introduce a second navigation system.
 - Keep the capture action dominant. UI chrome must not compete with the journal content.

@@ -13,6 +13,8 @@ import 'package:smartnotes/domain/services/i_local_auth_service.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/speech_models_screen.dart';
 import 'package:smartnotes/presentation/screens/settings/speech_models_store.dart';
+import 'package:smartnotes/presentation/widgets/model_catalog_tile.dart';
+import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
 import '../helpers/local_services.dart';
 
 class _Auth extends Mock implements ILocalAuthService {}
@@ -92,6 +94,11 @@ void main() {
       expect(find.textContaining('190.1 MB'), findsOneWidget);
       expect(find.text('English only'), findsNWidgets(2));
       expect(find.text('Recommended for this device'), findsOneWidget);
+      expect(find.byType(ModelSettingsPage), findsOneWidget);
+      expect(
+        find.byType(ModelCatalogTile),
+        findsNWidgets(SpeechModel.catalog.length),
+      );
       expect(store.recommendation.model, SpeechModel.small);
       expect(store.activeId, SpeechModel.whisperBaseQ8.id);
       final activeDelete = tester.widget<IconButton>(
