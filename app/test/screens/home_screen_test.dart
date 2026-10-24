@@ -16,6 +16,7 @@ import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/presentation/screens/home/home_screen.dart';
+import 'package:smartnotes/presentation/screens/home/widgets/journal_capture.dart';
 import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/timeline_item.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/day_header.dart';
@@ -55,25 +56,39 @@ class _Search extends MemorySearch {
       super.searchSemantic(query, isCancelled: isCancelled, options: options);
 }
 
-class _TestableHomeScreen extends StatelessWidget {
+class _TestableHomeScreen extends StatefulWidget {
   const _TestableHomeScreen({required this.store, this.router});
 
   final HomeStore store;
   final StackRouter? router;
 
   @override
+  State<_TestableHomeScreen> createState() => _TestableHomeScreenState();
+}
+
+class _TestableHomeScreenState extends State<_TestableHomeScreen> {
+  bool _isSearching = false;
+
+  @override
   Widget build(BuildContext context) {
+    final feed = HomeScreen(
+      onSearchModeChanged: (value) => setState(() => _isSearching = value),
+    );
     return MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: withNavBarInset(
-        router == null
-            ? const HomeScreen()
-            : StackRouterScope(
-                controller: router!,
-                stateHash: 0,
-                child: const HomeScreen(),
-              ),
+        JournalCapture(
+          store: widget.store,
+          showAction: !_isSearching,
+          child: widget.router == null
+              ? feed
+              : StackRouterScope(
+                  controller: widget.router!,
+                  stateHash: 0,
+                  child: feed,
+                ),
+        ),
       ),
     );
   }
@@ -149,6 +164,54 @@ void main() {
     entriesController.close();
     GetIt.I.reset();
   });
+
+  for (final width in [360.0, 1000.0]) {
+    for (final body in ['', 'Short note']) {
+      testWidgets('short cells fill the reading column at $width ($body)', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final date = DateTime(2026);
+        final entry = JournalEntry(
+          id: 'short',
+          createdAt: date,
+          updatedAt: date,
+          status: EntryStatus.completed,
+          transcription: body,
+        );
+        final router = MockStackRouter();
+        when(
+          () => router.push<Object?>(EntryDetailRoute(entryId: entry.id)),
+        ).thenAnswer((_) async => null);
+        await tester.pumpWidget(
+          _TestableHomeScreen(store: store, router: router),
+        );
+        entriesController.add([entry]);
+        await tester.pumpAndSettle();
+
+        final list = tester.getRect(find.byType(ListView));
+        final ink = find
+            .descendant(
+              of: find.byType(TimelineItem),
+              matching: find.byType(InkWell),
+            )
+            .first;
+        expect(tester.getSize(ink).width, list.width);
+        expect(list.width, lessThanOrEqualTo(640));
+        final right = Offset(list.right - 8, tester.getCenter(ink).dy);
+        await tester.tapAt(right);
+        await tester.pumpAndSettle();
+        verify(
+          () => router.push<Object?>(EntryDetailRoute(entryId: entry.id)),
+        ).called(1);
+
+        await tester.dragFrom(right, Offset(-list.width * 0.65, 0));
+        await tester.pumpAndSettle();
+        expect(find.text('Delete').hitTestable(), findsOneWidget);
+      });
+    }
+  }
 
   testWidgets(
     'amplitude updates waveform without rebuilding journal Scaffold or timeline',
@@ -551,6 +614,36 @@ void main() {
     expect(find.text('The original words I want to remember.'), findsOneWidget);
   });
 
+  for (final note in ['The saved edited words.', '']) {
+    testWidgets('preview respects the saved note body: "$note"', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      entriesController.add([
+        JournalEntry(
+          id: '1',
+          createdAt: now,
+          updatedAt: now,
+          status: EntryStatus.completed,
+          subTitle: 'Short summary of the note',
+          transcription: 'The original words.',
+          formattedNote: note,
+        ),
+      ]);
+
+      await tester.pumpWidget(_TestableHomeScreen(store: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Short summary of the note'), findsNothing);
+      expect(find.text('The original words.'), findsNothing);
+      if (note.isNotEmpty) {
+        expect(find.text(note), findsOneWidget);
+      } else {
+        expect(find.byKey(const ValueKey('preview')), findsNothing);
+      }
+    });
+  }
+
   testWidgets('renders empty state when no entries', (tester) async {
     entriesController.add([]);
 
@@ -765,11 +858,9 @@ void main() {
 
     expect(store.isRecording, isTrue);
 
-    final overlay = find.byWidgetPredicate(
-      (widget) =>
-          widget is Container && widget.color != null && widget.color!.a == 0.3,
-    );
+    final overlay = find.byKey(const ValueKey('recording-barrier'));
     expect(overlay, findsOneWidget);
+    expect(tester.widget<ModalBarrier>(overlay).dismissible, isFalse);
 
     await tester.tap(find.byIcon(Icons.search), warnIfMissed: false);
     await tester.pump();
@@ -779,14 +870,6 @@ void main() {
     await store.stopRecording();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.color != null &&
-            widget.color!.a == 0.3,
-      ),
-      findsNothing,
-    );
+    expect(overlay, findsNothing);
   });
 }

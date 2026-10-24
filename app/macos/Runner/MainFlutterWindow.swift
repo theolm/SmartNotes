@@ -8,10 +8,11 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
-    // The journal is a single reading column; keep a comfortable phone-like
-    // width instead of letting the layout stretch across a wide desktop.
-    self.minSize = NSSize(width: 420, height: 640)
-    self.setContentSize(NSSize(width: 460, height: 820))
+    // Start with room for the journal sidebar and a bounded reading pane.
+    // Small windows still use the same compact navigation as a phone.
+    self.minSize = NSSize(width: 360, height: 480)
+    let visibleSize = self.screen?.visibleFrame.size ?? NSSize(width: 1100, height: 800)
+    self.setContentSize(NSSize(width: min(1100, visibleSize.width), height: min(800, visibleSize.height)))
     self.center()
 
     RegisterGeneratedPlugins(registry: flutterViewController)

@@ -1,4 +1,8 @@
 {
+  "journalSelectEntry": "Select an entry",
+  "journalSelectEntryHelp": "Choose a thought from your journal, or record a new one.",
+  "editorExpand": "Expand editor",
+  "editorRestore": "Show journal alongside editor",
   "journalMaintenance": "Updating local search…",
   "appTitle": "SmartNotes",
   "saveNoteTitle": "Save note",
@@ -316,6 +320,7 @@
   "aiUnavailable": "AI processing could not complete. Please retry. Your saved content is unchanged.",
   "aiFormattingModelMissing": "This note needs a formatting model. Download and select one in Settings.",
   "aiNoSpeech": "No speech was detected. Your recording is still saved.",
+  "recordingNoSpeech": "No speech detected. Try recording again.",
   "aiIncompleteNote": "The local model did not finish formatting within its token limit. Your transcription is saved; retry.",
   "aiInvalidNote": "The local model returned an invalid note. Your transcription is saved; retry.",
   "aiInvalidEmbedding": "The local model could not produce a valid search vector. Your notes are unchanged; retry or check model setup.",

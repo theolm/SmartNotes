@@ -40,4 +40,62 @@ void main() {
     expect(find.text('Saved words remain readable.'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
+
+  testWidgets('renders formatted note Markdown in the timeline preview', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 10, 20, 9, 30);
+    final entry = JournalEntry(
+      id: 'entry-markdown',
+      createdAt: now,
+      updatedAt: now,
+      status: EntryStatus.completed,
+      formattedNote: '**Important**\n\n- Keep the Markdown readable.',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: TimelineItem(entry: entry)),
+      ),
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Text &&
+            widget.data == 'Important\n\n• Keep the Markdown readable.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('**Important**'), findsNothing);
+  });
+
+  testWidgets('uses the note body instead of subtitle in the timeline preview', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 10, 20, 9, 30);
+    final entry = JournalEntry(
+      id: 'entry-subtitle',
+      createdAt: now,
+      updatedAt: now,
+      status: EntryStatus.completed,
+      transcription: 'The current note body.',
+      title: 'Conversation',
+      subTitle: 'Plans for tomorrow.',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: TimelineItem(entry: entry)),
+      ),
+    );
+
+    expect(find.text('Conversation'), findsOneWidget);
+    expect(find.text('Plans for tomorrow.'), findsNothing);
+    expect(find.text('The current note body.'), findsOneWidget);
+  });
 }
