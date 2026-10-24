@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Keep PR and release builds on the same reviewed SDK revision.
-readonly FLUTTER_VERSION="3.47.6"
-readonly FLUTTER_REVISION="5fc346839b5d0eef006ed8404392afb4dfae428d"
+readonly FLUTTER_VERSION="3.47.8"
+readonly FLUTTER_REVISION="737ba8f885dc774b53b442759999a312c9461e4e"
 readonly FLUTTER_DIR="$RUNNER_TEMP/flutter"
 
 git clone --depth 1 --branch "$FLUTTER_VERSION" \
