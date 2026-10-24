@@ -8,16 +8,22 @@ class EntryEditDraft {
     required this.subtitle,
     required this.body,
     required this.entryDate,
-  });
+    this.creationId,
+  }) : assert(source != null || creationId != null);
 
-  final JournalEntry source;
+  /// New captures have no saved source. Existing draft JSON remains readable.
+  final JournalEntry? source;
+  final String? creationId;
+  static const creationKey = 'new-typed-entry';
+  String get id => source?.id ?? creationKey;
   final String title;
   final String subtitle;
   final String body;
   final DateTime entryDate;
 
   Map<String, dynamic> toJson() => {
-    'source': source.toJson(),
+    'source': source?.toJson(),
+    if (creationId != null) 'creationId': creationId,
     'title': title,
     'subtitle': subtitle,
     'body': body,
@@ -25,9 +31,12 @@ class EntryEditDraft {
   };
 
   factory EntryEditDraft.fromJson(Map<String, dynamic> json) => EntryEditDraft(
-    source: JournalEntry.fromJson(
-      Map<String, dynamic>.from(json['source'] as Map),
-    ),
+    source: json['source'] == null
+        ? null
+        : JournalEntry.fromJson(
+            Map<String, dynamic>.from(json['source'] as Map),
+          ),
+    creationId: json['creationId'] as String?,
     title: json['title'] as String,
     subtitle: json['subtitle'] as String,
     body: json['body'] as String,

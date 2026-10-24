@@ -98,11 +98,18 @@ class EntryDetailRouteArgs {
 class EntryEditRoute extends _i10.PageRouteInfo<EntryEditRouteArgs> {
   EntryEditRoute({
     _i11.Key? key,
-    required String entryId,
+    String? entryId,
+    String initialTitle = '',
+    String initialSubtitle = '',
     List<_i10.PageRouteInfo>? children,
   }) : super(
          EntryEditRoute.name,
-         args: EntryEditRouteArgs(key: key, entryId: entryId),
+         args: EntryEditRouteArgs(
+           key: key,
+           entryId: entryId,
+           initialTitle: initialTitle,
+           initialSubtitle: initialSubtitle,
+         ),
          initialChildren: children,
        );
 
@@ -111,33 +118,56 @@ class EntryEditRoute extends _i10.PageRouteInfo<EntryEditRouteArgs> {
   static _i10.PageInfo page = _i10.PageInfo(
     name,
     builder: (data) {
-      final args = data.argsAs<EntryEditRouteArgs>();
-      return _i3.EntryEditScreen(key: args.key, entryId: args.entryId);
+      final args = data.argsAs<EntryEditRouteArgs>(
+        orElse: () => const EntryEditRouteArgs(),
+      );
+      return _i3.EntryEditScreen(
+        key: args.key,
+        entryId: args.entryId,
+        initialTitle: args.initialTitle,
+        initialSubtitle: args.initialSubtitle,
+      );
     },
   );
 }
 
 class EntryEditRouteArgs {
-  const EntryEditRouteArgs({this.key, required this.entryId});
+  const EntryEditRouteArgs({
+    this.key,
+    this.entryId,
+    this.initialTitle = '',
+    this.initialSubtitle = '',
+  });
 
   final _i11.Key? key;
 
-  final String entryId;
+  final String? entryId;
+
+  final String initialTitle;
+
+  final String initialSubtitle;
 
   @override
   String toString() {
-    return 'EntryEditRouteArgs{key: $key, entryId: $entryId}';
+    return 'EntryEditRouteArgs{key: $key, entryId: $entryId, initialTitle: $initialTitle, initialSubtitle: $initialSubtitle}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! EntryEditRouteArgs) return false;
-    return key == other.key && entryId == other.entryId;
+    return key == other.key &&
+        entryId == other.entryId &&
+        initialTitle == other.initialTitle &&
+        initialSubtitle == other.initialSubtitle;
   }
 
   @override
-  int get hashCode => key.hashCode ^ entryId.hashCode;
+  int get hashCode =>
+      key.hashCode ^
+      entryId.hashCode ^
+      initialTitle.hashCode ^
+      initialSubtitle.hashCode;
 }
 
 /// generated route for

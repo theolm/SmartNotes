@@ -11,6 +11,15 @@ abstract class IJournalEntryService {
   Future<JournalEntry?> getById(String id);
   Future<JournalEntry> create({required String audioPath});
 
+  /// Creates a completed, audio-free entry without invoking any model.
+  /// The caller retains [id] across retries and recovery.
+  Future<JournalEntry> createTyped({
+    required String id,
+    required String text,
+    String? title,
+    String? subTitle,
+  });
+
   /// When [expected] is provided, refuse a stale write after an edit/import.
   Future<JournalEntry> update(JournalEntry entry, {JournalEntry? expected});
   Future<void> delete(String id);

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:mobx/mobx.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:smartnotes/core/utils/log.dart' show logger;
 import 'package:smartnotes/domain/entities/journal_entry.dart';
@@ -20,6 +21,24 @@ abstract class _EntryEditStore with Store {
 
   final IJournalEntryService _journalEntryService;
   final IEntryDraftRepository? drafts;
+
+  @observable
+  bool isCreating = false;
+
+  String? creationId;
+
+  Future<JournalEntry?> findCreatedEntry(String id) =>
+      _journalEntryService.getById(id);
+
+  @action
+  void startCreation({String? id}) {
+    isCreating = true;
+    creationId = id ?? const Uuid().v4();
+    entry = null;
+    selectedEntryDate = DateTime.now();
+    writeFailure = null;
+    errorMessage = null;
+  }
 
   @observable
   EntryWriteFailureKind? writeFailure;
@@ -95,7 +114,7 @@ abstract class _EntryEditStore with Store {
   }) async {
     logger.d('saveEntry');
     final currentEntry = entry;
-    if (currentEntry == null || isSaving) {
+    if (isSaving || (currentEntry == null && !isCreating)) {
       logger.w('saveEntry: no entry loaded');
       return null;
     }
@@ -105,6 +124,23 @@ abstract class _EntryEditStore with Store {
     writeFailure = null;
 
     try {
+      if (isCreating) {
+        if (rawMarkdown.trim().isEmpty) {
+          errorMessage = 'noteBodyRequired';
+          return null;
+        }
+        final saved = await _journalEntryService.createTyped(
+          id: creationId!,
+          text: rawMarkdown,
+          title: title,
+          subTitle: subTitle,
+        );
+        entry = saved;
+        selectedEntryDate = saved.effectiveEntryDate;
+        isCreating = false;
+        return saved;
+      }
+      if (currentEntry == null) return null;
       final updated = currentEntry.copyWith(
         title: title.isEmpty && currentEntry.title == null ? null : title,
         subTitle: subTitle.isEmpty && currentEntry.subTitle == null

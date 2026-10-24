@@ -53,7 +53,10 @@ class _SearchExcerptState extends State<SearchExcerpt> {
           (source) => switch (source) {
             SearchSource.title => l10n.searchSourceTitle,
             SearchSource.note => l10n.searchSourceNote,
-            SearchSource.original => l10n.searchSourceOriginal,
+            SearchSource.original =>
+              widget.current.audioPath == null
+                  ? l10n.originalText
+                  : l10n.searchSourceOriginal,
           },
         )
         .join(' · ');

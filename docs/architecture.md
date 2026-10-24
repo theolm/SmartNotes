@@ -211,6 +211,11 @@ AutoRoute(page: EntryDetailRoute.page, guards: [LocalLockGuard()]),
 - `JournalEntry` carries immutable audit timestamps (`createdAt`, `updatedAt`) and a user-editable `entryDate`. Ordering and grouping use `effectiveEntryDate`, which falls back to `createdAt` when `entryDate` is absent.
 - `JournalEntry.body` returns the accepted formatted note when present; otherwise it returns the original transcription. An intentionally empty formatted note must not reveal the original transcription.
 - Writes that can race with edits, imports, or deletion must compare an expected snapshot and reject stale updates.
+- Typed capture uses the first saved body as `transcription`, leaves `audioPath`
+  and `formattedNote` null, and starts completed. `createTyped` writes the whole
+  entry and search text atomically without calling audio or model services.
+  A reserved capture ID survives recovery; creation rejects an existing ID
+  atomically rather than overwriting an imported or concurrently edited entry.
 - Do not put Flutter widgets, platform channels, or database objects in domain entities.
 
 ## 9. Persistence and search
@@ -374,6 +379,14 @@ Model checks and journal recovery must never delay route protection or the first
 - The existing editor's recovery draft remains a failure-recovery mechanism,
   not a way to transfer an editor between separate compact and wide widgets.
   Text, selection, focus, search, and scroll have live session ownership.
+- `EntryEditRoute` also hosts new typed captures without a saved entry ID.
+  The route, not a selected saved ID, determines whether the editor pane is
+  visible. Optional initial metadata remains draft data until a nonblank body
+  is saved. New-capture recovery has no saved source snapshot and uses a separate
+  draft key plus a reserved entry ID. Recovery checks for an already committed
+  entry before offering Resume/Discard, closing the commit/cleanup crash window.
+  Existing entry draft JSON remains compatible. The first save opens detail;
+  subsequent editing retains concurrency-checked metadata review.
 - `JournalNavigationSession` is a workspace-owned presentation handshake for
   leaving the editor. Sidebar and notification entry selection await the same
   Save/Discard/Keep editing flow, including metadata review and write failure.
@@ -399,7 +412,8 @@ Model checks and journal recovery must never delay route protection or the first
 - Native macOS integration coverage for adaptive entry selection lives in
   `integration_test/adaptive_journal_platform_test.dart`. It opens only a generated
   temporary journal, runs the actual SQLite worker and nested routes, and never
-  initializes the user's journal or model services.
+  initializes the user's journal or model services. It also exercises typed
+  capture through metadata, the shared editor, and completed audio-free storage.
 - Stop a live macOS debug app before rebuilding its native assets with another
   build or native integration test. Relaunch the process afterwards; do not hot
   reload the old process against replaced native frameworks. Native SQLite

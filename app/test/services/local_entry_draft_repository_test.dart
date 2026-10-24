@@ -56,6 +56,32 @@ void main() {
   });
 
   test(
+    'new capture recovers without a saved entry or changing old drafts',
+    () async {
+      await drafts.write(draft('Existing edit'));
+      await drafts.write(
+        EntryEditDraft(
+          source: null,
+          creationId: 'reserved-id',
+          title: 'A thought',
+          subtitle: '',
+          body: 'Not saved yet',
+          entryDate: DateTime(2026),
+        ),
+      );
+      final recreated = LocalEntryDraftRepository.inDirectory(directory);
+      final pending = (await recreated.read(EntryEditDraft.creationKey))!;
+      expect(pending.source, isNull);
+      expect(pending.creationId, 'reserved-id');
+      expect(pending.body, 'Not saved yet');
+      expect((await recreated.read(source.id))!.source, source);
+      await recreated.remove(EntryEditDraft.creationKey);
+      expect(await recreated.read(EntryEditDraft.creationKey), isNull);
+      expect(await recreated.read(source.id), isNotNull);
+    },
+  );
+
+  test(
     'intentionally empty drafts remain empty and corrupt files are not overwritten',
     () async {
       await drafts.write(draft(''));

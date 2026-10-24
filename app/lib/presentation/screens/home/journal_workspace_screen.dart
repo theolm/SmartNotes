@@ -13,6 +13,7 @@ import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/journal_capture.dart';
 import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dart';
 import 'package:smartnotes/presentation/widgets/adaptive_panes.dart';
+import 'package:smartnotes/presentation/screens/entry_edit/new_note_metadata_sheet.dart';
 
 @RoutePage(name: 'HomeRoute')
 class JournalWorkspaceScreen extends StatefulWidget {
@@ -30,6 +31,30 @@ class _JournalWorkspaceScreenState extends State<JournalWorkspaceScreen> {
   bool _opening = false;
   AppRouter? _appRouter;
   StackRouter? _paneRouter;
+
+  Future<void> _createNote(StackRouter router) async {
+    if (_opening || _homeStore.isRecording) return;
+    _opening = true;
+    try {
+      final leave = _session.leaveEditor;
+      if (leave != null && !await leave()) return;
+      if (!mounted) return;
+      final metadata = await showNewNoteMetadata(context);
+      if (!mounted || metadata == null) return;
+      setState(() => _editorExpanded = false);
+      final route = EntryEditRoute(
+        initialTitle: metadata.title,
+        initialSubtitle: metadata.subtitle,
+      );
+      if (router.current.name == EntryDetailRoute.name) {
+        unawaited(router.replace<void>(route));
+      } else {
+        unawaited(router.push<void>(route));
+      }
+    } finally {
+      _opening = false;
+    }
+  }
 
   Future<void> _openRequestedEntry(String id) async {
     final router = _paneRouter;
@@ -95,6 +120,7 @@ class _JournalWorkspaceScreenState extends State<JournalWorkspaceScreen> {
         _ => null,
       };
       final editing = router.current.name == EntryEditRoute.name;
+      final hasOpenContent = selectedId != null || editing;
       return LayoutBuilder(
         builder: (context, constraints) {
           final media = MediaQuery.of(context);
@@ -110,7 +136,7 @@ class _JournalWorkspaceScreenState extends State<JournalWorkspaceScreen> {
             direction: Directionality.of(context),
           );
           final showCapture =
-              !_isSearching && (layout.canSplit || selectedId == null);
+              !_isSearching && (layout.canSplit || !hasOpenContent);
           return JournalWorkspaceScope(
             session: _session,
             selectedEntryId: selectedId,
@@ -127,9 +153,10 @@ class _JournalWorkspaceScreenState extends State<JournalWorkspaceScreen> {
               showAction: showCapture,
               child: AdaptivePanes(
                 layout: layout,
-                showSecondary: selectedId != null,
+                showSecondary: hasOpenContent,
                 expanded: _editorExpanded && editing,
                 primary: HomeScreen(
+                  onCreateNote: () => _createNote(router),
                   onSearchModeChanged: (value) =>
                       setState(() => _isSearching = value),
                 ),

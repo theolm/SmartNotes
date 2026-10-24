@@ -17,6 +17,24 @@ mixin _$EntryEditStore on _EntryEditStore, Store {
     name: '_EntryEditStore.hasError',
   )).value;
 
+  late final _$isCreatingAtom = Atom(
+    name: '_EntryEditStore.isCreating',
+    context: context,
+  );
+
+  @override
+  bool get isCreating {
+    _$isCreatingAtom.reportRead();
+    return super.isCreating;
+  }
+
+  @override
+  set isCreating(bool value) {
+    _$isCreatingAtom.reportWrite(value, super.isCreating, () {
+      super.isCreating = value;
+    });
+  }
+
   late final _$writeFailureAtom = Atom(
     name: '_EntryEditStore.writeFailure',
     context: context,
@@ -171,6 +189,18 @@ mixin _$EntryEditStore on _EntryEditStore, Store {
   );
 
   @override
+  void startCreation({String? id}) {
+    final _$actionInfo = _$_EntryEditStoreActionController.startAction(
+      name: '_EntryEditStore.startCreation',
+    );
+    try {
+      return super.startCreation(id: id);
+    } finally {
+      _$_EntryEditStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void selectEntryDate(DateTime date) {
     final _$actionInfo = _$_EntryEditStoreActionController.startAction(
       name: '_EntryEditStore.selectEntryDate',
@@ -185,6 +215,7 @@ mixin _$EntryEditStore on _EntryEditStore, Store {
   @override
   String toString() {
     return '''
+isCreating: ${isCreating},
 writeFailure: ${writeFailure},
 entry: ${entry},
 isLoading: ${isLoading},

@@ -16,6 +16,7 @@ void main() {
     status: EntryStatus.completed,
     formattedNote: 'Current words',
     transcription: 'Original memory',
+    audioPath: '/isolated/recording.m4a',
   );
 
   Widget app(
@@ -128,5 +129,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Old private words', findRichText: true), findsNothing);
     expect(find.textContaining('This entry has changed.'), findsOneWidget);
+  });
+
+  testWidgets('typed source evidence is labeled original text', (tester) async {
+    final typed = entry.copyWith(audioPath: null);
+    await tester.pumpWidget(
+      app(
+        SearchResult(
+          entry: typed,
+          excerpt: 'Original memory',
+          sources: {SearchSource.original},
+          score: -1,
+        ),
+        current: typed,
+      ),
+    );
+    expect(find.text('Original text'), findsOneWidget);
+    expect(find.text('Original transcription'), findsNothing);
   });
 }

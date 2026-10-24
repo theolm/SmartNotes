@@ -87,6 +87,33 @@ void main() {
     await temporary.delete(recursive: true);
   });
 
+  test(
+    'typed creation publishes the feed and survives backup restore',
+    () async {
+      final published = Completer<JournalEntry>();
+      final subscription = journal.watchAll().listen((entries) {
+        if (entries.any((entry) => entry.id == 'typed') &&
+            !published.isCompleted) {
+          published.complete(entries.single);
+        }
+      });
+      final change = database.entryChanges.first;
+      final entry = await journal.createTyped(
+        id: 'typed',
+        text: 'Quiet afternoon',
+        title: 'Reflection',
+      );
+      expect(await change, entry.id);
+      expect(await published.future.timeout(const Duration(seconds: 5)), entry);
+      final bytes = await backups.export();
+      await journal.delete(entry.id);
+      await backups.import(bytes);
+      expect(await journal.getById(entry.id), entry);
+      expect((await search.searchText('afternoon')).single.entry.id, entry.id);
+      await subscription.cancel();
+    },
+  );
+
   Future<JournalEntry> completed({String title = 'Travel plans'}) async {
     final path = p.join(audio.path, 'recording.m4a');
     await File(path).writeAsBytes([1, 2, 3]);
@@ -100,6 +127,56 @@ void main() {
       ),
     );
   }
+
+  test(
+    'typed capture is complete, searchable, and has no audio dependency',
+    () async {
+      final entry = await journal.createTyped(
+        id: 'typed',
+        text: '  Quiet thought\n',
+        title: '',
+      );
+      expect(entry.status, EntryStatus.completed);
+      expect(entry.audioPath, isNull);
+      expect(entry.transcription, '  Quiet thought\n');
+      expect(entry.body, entry.transcription);
+      expect(entry.formattedNote, isNull);
+      expect(entry.title, isNull);
+      expect(entry.entryDate, entry.createdAt);
+      expect(entry.updatedAt, entry.createdAt);
+      expect(await journal.getById(entry.id), entry);
+      verifyNever(() => files.getAudioDirectoryPath());
+      expect(
+        (await search.searchText('Quiet')).map((r) => r.entry.id),
+        contains(entry.id),
+      );
+    },
+  );
+
+  test(
+    'typed capture rejects blanks and cannot overwrite an existing ID',
+    () async {
+      await expectLater(
+        journal.createTyped(id: 'blank', text: ' \n '),
+        throwsArgumentError,
+      );
+      expect(await database.entry('blank'), isNull);
+      final entry = await journal.createTyped(id: 'typed', text: 'Original');
+      await expectLater(
+        journal.createTyped(id: 'typed', text: 'Replacement'),
+        throwsA(isA<EntryWriteFailure>()),
+      );
+      expect(await journal.getById(entry.id), entry);
+      final edited = await journal.update(
+        entry.copyWith(formattedNote: 'Edited'),
+        expected: entry,
+      );
+      expect(edited.transcription, 'Original');
+      expect(edited.body, 'Edited');
+      await journal.delete(entry.id);
+      verifyNever(() => files.deleteFile(any()));
+    },
+  );
 
   test(
     'typed conflicts cross the database isolate and never overwrite newer text',

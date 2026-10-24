@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:intl/intl.dart';
 import 'package:smartnotes/core/di/injection.dart';
+import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/domain/entities/entry_write_failure.dart';
@@ -17,8 +18,15 @@ import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dar
 
 @RoutePage()
 class EntryEditScreen extends StatefulWidget {
-  const EntryEditScreen({super.key, required this.entryId});
-  final String entryId;
+  const EntryEditScreen({
+    super.key,
+    this.entryId,
+    this.initialTitle = '',
+    this.initialSubtitle = '',
+  });
+  final String? entryId;
+  final String initialTitle;
+  final String initialSubtitle;
 
   @override
   State<EntryEditScreen> createState() => _EntryEditScreenState();
@@ -43,6 +51,8 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   bool _saveInProgress = false;
   EntryEditDraft? _orphanDraft;
   bool get _saving => _saveInProgress || _store.isSaving;
+  bool get _newNote => widget.entryId == null;
+  String get _draftId => widget.entryId ?? EntryEditDraft.creationKey;
 
   @override
   void didChangeDependencies() {
@@ -64,6 +74,12 @@ class _EntryEditScreenState extends State<EntryEditScreen>
 
   bool get _dirty {
     final entry = _store.entry;
+    if (_newNote && _store.isCreating) {
+      return _ready &&
+          (_body.text.isNotEmpty ||
+              _title.text.isNotEmpty ||
+              _subtitle.text.isNotEmpty);
+    }
     return _ready &&
         entry != null &&
         (_title.text != (entry.title ?? '') ||
@@ -95,11 +111,15 @@ class _EntryEditScreenState extends State<EntryEditScreen>
       _ready = false;
       _recoveryError = false;
     });
-    await _store.loadEntry(widget.entryId);
+    if (_newNote) {
+      await _loadCreation();
+      return;
+    }
+    await _store.loadEntry(widget.entryId!);
     if (!mounted) return;
     EntryEditDraft? draft;
     try {
-      draft = await _store.drafts?.read(widget.entryId);
+      draft = await _store.drafts?.read(_draftId);
     } catch (_) {
       if (mounted) setState(() => _recoveryError = true);
       return;
@@ -153,7 +173,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
         }
       } else {
         try {
-          await _store.drafts?.remove(widget.entryId);
+          await _store.drafts?.remove(_draftId);
         } catch (_) {
           if (mounted) setState(() => _recoveryError = true);
           return;
@@ -164,6 +184,88 @@ class _EntryEditScreenState extends State<EntryEditScreen>
     if (!mounted) return;
     _fill(_store.entry!, draft);
     setState(() => _ready = true);
+  }
+
+  Future<void> _loadCreation() async {
+    try {
+      final draft = await _store.drafts?.read(_draftId);
+      if (!mounted) return;
+      if (draft != null) {
+        // A crash after commit but before draft cleanup must not create a copy.
+        final saved = await _store.findCreatedEntry(draft.creationId!);
+        if (!mounted) return;
+        if (saved != null &&
+            saved.audioPath == null &&
+            saved.transcription == draft.body) {
+          await _store.drafts?.remove(_draftId);
+          if (mounted) {
+            await context.replaceRoute(EntryDetailRoute(entryId: saved.id));
+          }
+          return;
+        }
+        final l10n = AppLocalizations.of(context)!;
+        setState(() => _awaitingResume = true);
+        final resume = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.resumeNewNoteTitle),
+            content: Text(
+              saved == null
+                  ? l10n.resumeNewNoteHelp
+                  : l10n.resumeNewNoteConflictHelp,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(l10n.aiDiscard),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(l10n.resumeNewNote),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        setState(() => _awaitingResume = false);
+        if (resume == null) {
+          await _pop();
+          return;
+        }
+        if (resume) {
+          _store.startCreation(id: saved == null ? draft.creationId : null);
+          _title.text = draft.title;
+          _subtitle.text = draft.subtitle;
+          _body.text = draft.body;
+        } else {
+          await _store.drafts?.remove(_draftId);
+          _startCreation();
+        }
+      } else {
+        _startCreation();
+      }
+      if (!mounted) return;
+      setState(() => _ready = true);
+      await _persist();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _bodyFocus.requestFocus();
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _recoveryError = true;
+          _awaitingResume = false;
+        });
+      }
+    }
+  }
+
+  void _startCreation() {
+    _store.startCreation();
+    _title.text = widget.initialTitle;
+    _subtitle.text = widget.initialSubtitle;
+    _body.clear();
   }
 
   void _bodyFocusChanged() {
@@ -181,12 +283,16 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   }
 
   Future<void> _persist() async {
-    if (!_ready || _closing || _store.entry == null) return;
+    if (!_ready || _closing || (_store.entry == null && !_store.isCreating)) {
+      return;
+    }
+    if (_newNote && !_store.isCreating) return;
     try {
       if (_dirty) {
         await _store.drafts?.write(
           EntryEditDraft(
-            source: _store.entry!,
+            source: _newNote ? null : _store.entry!,
+            creationId: _newNote ? _store.creationId : null,
             title: _title.text,
             subtitle: _subtitle.text,
             body: _body.text,
@@ -195,7 +301,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
           ),
         );
       } else {
-        await _store.drafts?.remove(widget.entryId);
+        await _store.drafts?.remove(_draftId);
       }
       if (mounted && _draftError) setState(() => _draftError = false);
     } catch (_) {
@@ -263,7 +369,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
       _debounce?.cancel();
       _closing = true;
       try {
-        await _store.drafts?.remove(widget.entryId);
+        await _store.drafts?.remove(_draftId);
       } catch (_) {
         _closing = false;
         if (mounted) setState(() => _draftError = true);
@@ -281,6 +387,20 @@ class _EntryEditScreenState extends State<EntryEditScreen>
   }
 
   Future<void> _reviewAndSave() async {
+    if (_newNote) {
+      if (_saving || _dialogOpen || !_ready) return;
+      if (_body.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.noteBodyRequired),
+          ),
+        );
+        _bodyFocus.requestFocus();
+        return;
+      }
+      await _save();
+      return;
+    }
     if (_saving || _dialogOpen || !_ready || _store.entry == null) return;
     FocusManager.instance.primaryFocus?.unfocus();
     _dialogOpen = true;
@@ -410,7 +530,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
       if (!mounted || saved == null) return;
       _closing = true;
       try {
-        await _store.drafts?.remove(widget.entryId);
+        await _store.drafts?.remove(_draftId);
       } catch (_) {
         // The canonical write succeeded. Keep the user here to retry cleanup,
         // rather than letting an obsolete draft silently reappear next time.
@@ -418,7 +538,14 @@ class _EntryEditScreenState extends State<EntryEditScreen>
         if (mounted) setState(() => _draftError = true);
         return;
       }
-      if (mounted) await _pop();
+      if (mounted) {
+        if (_newNote) {
+          setState(() => _allowPop = true);
+          await context.replaceRoute(EntryDetailRoute(entryId: saved.id));
+        } else {
+          await _pop();
+        }
+      }
     } finally {
       if (mounted) setState(() => _saveInProgress = false);
     }
@@ -508,7 +635,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
     if (replace != true || !mounted) return;
     _debounce?.cancel();
     try {
-      await _store.drafts?.remove(widget.entryId);
+      await _store.drafts?.remove(_draftId);
     } catch (_) {
       if (mounted) setState(() => _draftError = true);
       return;
@@ -592,7 +719,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
     );
     if (!mounted || discard != true) return;
     try {
-      await _store.drafts?.remove(widget.entryId);
+      await _store.drafts?.remove(_draftId);
     } catch (_) {
       if (mounted) setState(() => _recoveryError = true);
       return;
@@ -616,7 +743,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
         child: Scaffold(
           appBar: AppBar(
             title: Text(
-              l10n.editEntryTitle,
+              _newNote ? l10n.newNoteTitle : l10n.editEntryTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -639,7 +766,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
               TextButton.icon(
                 onPressed:
                     !_ready ||
-                        _store.entry == null ||
+                        (_store.entry == null && !_store.isCreating) ||
                         _store.isSaving ||
                         _saveInProgress
                     ? null
@@ -673,7 +800,7 @@ class _EntryEditScreenState extends State<EntryEditScreen>
               ? _awaitingResume
                     ? const SizedBox.shrink()
                     : const Center(child: CircularProgressIndicator())
-              : _store.entry == null
+              : _store.entry == null && !_store.isCreating
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -735,10 +862,11 @@ class _EntryEditScreenState extends State<EntryEditScreen>
                                   onPressed: _saving ? null : () => _copy(),
                                   child: Text(l10n.copyEdits),
                                 ),
-                                TextButton(
-                                  onPressed: _saving ? null : _compare,
-                                  child: Text(l10n.compareSaved),
-                                ),
+                                if (!_newNote)
+                                  TextButton(
+                                    onPressed: _saving ? null : _compare,
+                                    child: Text(l10n.compareSaved),
+                                  ),
                               ],
                             ),
                           ],

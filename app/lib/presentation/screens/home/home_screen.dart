@@ -19,9 +19,10 @@ import 'package:smartnotes/domain/entities/processing_feedback.dart';
 import 'package:smartnotes/presentation/screens/home/journal_workspace_scope.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.onSearchModeChanged});
+  const HomeScreen({super.key, this.onSearchModeChanged, this.onCreateNote});
 
   final ValueChanged<bool>? onSearchModeChanged;
+  final Future<void> Function()? onCreateNote;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -180,6 +181,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: _homeStore.isSearchingMeaning ? null : _search,
                 ),
               if (!_isSearching) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: l10n.writeNote,
+                  onPressed: _homeStore.isRecording
+                      ? null
+                      : widget.onCreateNote,
+                ),
                 IconButton(
                   icon: const Icon(Icons.search),
                   tooltip: l10n.search,

@@ -94,6 +94,78 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @writeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a note'**
+  String get writeNote;
+
+  /// No description provided for @discardNewNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this new note?'**
+  String get discardNewNoteTitle;
+
+  /// No description provided for @resumeNewNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume your note?'**
+  String get resumeNewNoteTitle;
+
+  /// No description provided for @resumeNewNoteHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'An unfinished note is saved on this device.'**
+  String get resumeNewNoteHelp;
+
+  /// No description provided for @resumeNewNoteConflictHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Another saved entry uses this note\'s identifier. Resume to keep your draft as a separate new note; the saved entry will not change.'**
+  String get resumeNewNoteConflictHelp;
+
+  /// No description provided for @resumeNewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume note'**
+  String get resumeNewNote;
+
+  /// No description provided for @newNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New note'**
+  String get newNoteTitle;
+
+  /// No description provided for @continueToNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueToNote;
+
+  /// No description provided for @noteBodyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something before saving your note.'**
+  String get noteBodyRequired;
+
+  /// No description provided for @originalText.
+  ///
+  /// In en, this message translates to:
+  /// **'Original text'**
+  String get originalText;
+
+  /// No description provided for @restoreOriginalText.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore original text'**
+  String get restoreOriginalText;
+
+  /// No description provided for @restoreOriginalTextConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the current note with its original text?'**
+  String get restoreOriginalTextConfirmation;
+
   /// No description provided for @journalSelectEntry.
   ///
   /// In en, this message translates to:

@@ -206,12 +206,14 @@ class LocalDatabase {
     }
     if (operation == 'save' ||
         operation == 'create' ||
+        operation == 'createExclusive' ||
         operation == 'delete' ||
         operation == 'import') {
       _changes.add(null);
       _entryChanges.add(switch (operation) {
         'save' => (arguments as Map)['entry']['id'] as String,
         'create' => (arguments as Map)['id'] as String,
+        'createExclusive' => (arguments as Map)['id'] as String,
         'delete' => arguments as String,
         _ => null,
       });
@@ -221,6 +223,7 @@ class LocalDatabase {
     if ([
       'save',
       'create',
+      'createExclusive',
       'delete',
       'import',
       'index',
@@ -241,8 +244,11 @@ class LocalDatabase {
         : JournalEntry.fromJson(Map<String, dynamic>.from(json as Map));
   }
 
-  Future<void> insertEntry(JournalEntry entry) async =>
-      _request('create', entry.toJson());
+  Future<void> insertEntry(
+    JournalEntry entry, {
+    bool exclusive = false,
+  }) async =>
+      _request(exclusive ? 'createExclusive' : 'create', entry.toJson());
   Future<void> updateEntry(
     JournalEntry entry, {
     JournalEntry? expected,
@@ -540,6 +546,7 @@ void _databaseWorker(List<dynamic> startup) {
           const {
             'save',
             'create',
+            'createExclusive',
             'delete',
             'import',
             'index',
@@ -644,6 +651,16 @@ void _databaseWorker(List<dynamic> startup) {
           transaction(() => save(json));
         case 'create':
           transaction(() => save(Map<String, dynamic>.from(arg as Map)));
+        case 'createExclusive':
+          transaction(() {
+            final json = Map<String, dynamic>.from(arg as Map);
+            if (db.select('SELECT id FROM entries WHERE id = ?', [
+              json['id'],
+            ]).isNotEmpty) {
+              throw EntryWriteFailure(EntryWriteFailureKind.changed);
+            }
+            save(json);
+          });
         case 'delete':
           transaction(() {
             removeVectors(arg as String);

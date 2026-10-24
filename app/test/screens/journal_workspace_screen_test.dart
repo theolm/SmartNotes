@@ -16,6 +16,7 @@ import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart';
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart';
+import 'package:smartnotes/domain/services/i_entry_draft_repository.dart';
 import 'package:smartnotes/domain/services/i_local_auth_service.dart';
 import 'package:smartnotes/domain/services/i_settings_service.dart';
 import 'package:smartnotes/domain/use_cases/process_audio_note.dart';
@@ -217,6 +218,237 @@ void main() {
     unawaited(nested.push<void>(EntryEditRoute(entryId: '0')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'metadata cancellation confirms discard without creating a note',
+    (tester) async {
+      await mount(tester, width: 390, scale: 1.5);
+      await tester.tap(find.byTooltip('Write a note'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Not committed');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard this new note?'), findsOneWidget);
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      expect(find.text('Not committed'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(EntryEditScreen), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  Future<void> newNote(WidgetTester tester, {String title = ''}) async {
+    await tester.tap(find.byTooltip('Write a note'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNWidgets(2));
+    if (title.isNotEmpty) {
+      await tester.enterText(find.byType(TextField).first, title);
+    }
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('failed typed save retains body and draft for retry', (
+    tester,
+  ) async {
+    when(
+      () => journal.createTyped(
+        id: any(named: 'id'),
+        text: any(named: 'text'),
+        title: any(named: 'title'),
+        subTitle: any(named: 'subTitle'),
+      ),
+    ).thenThrow(StateError('Unavailable'));
+    await mount(tester, width: 390);
+    await newNote(tester);
+    await tester.enterText(find.byType(TextFormField), 'Keep these words');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.byType(EntryEditScreen), findsOneWidget);
+    expect(find.text('Keep these words'), findsOneWidget);
+    expect(drafts.values[EntryEditDraft.creationKey]!.body, 'Keep these words');
+    expect(find.text('Copy edits'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final width in [390.0, 1000.0]) {
+    testWidgets('typed capture saves once without audio at width $width', (
+      tester,
+    ) async {
+      when(
+        () => journal.createTyped(
+          id: any(named: 'id'),
+          text: any(named: 'text'),
+          title: any(named: 'title'),
+          subTitle: any(named: 'subTitle'),
+        ),
+      ).thenAnswer((call) async {
+        final entry = JournalEntry(
+          id: call.namedArguments[#id] as String,
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          status: EntryStatus.completed,
+          title: call.namedArguments[#title] as String?,
+          transcription: call.namedArguments[#text] as String,
+        );
+        entries.add(entry);
+        return entry;
+      });
+      await mount(tester, width: width);
+      await newNote(tester, title: 'Quiet moment');
+      expect(find.byType(EntryEditScreen), findsOneWidget);
+      expect(find.byType(TextFormField), findsOneWidget);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.focusNode!.hasFocus, isTrue);
+      verifyNever(
+        () => journal.createTyped(
+          id: any(named: 'id'),
+          text: any(named: 'text'),
+          title: any(named: 'title'),
+          subTitle: any(named: 'subTitle'),
+        ),
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Write something before saving your note.'),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byType(TextFormField),
+        '  My original words\n',
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(drafts.values[EntryEditDraft.creationKey]!.source, isNull);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EntryDetailScreen), findsOneWidget);
+      expect(find.text('Quiet moment'), findsOneWidget);
+      expect(drafts.values, isEmpty);
+      verify(
+        () => journal.createTyped(
+          id: any(named: 'id'),
+          text: '  My original words\n',
+          title: 'Quiet moment',
+          subTitle: '',
+        ),
+      ).called(1);
+      verifyNever(() => audio.hasPermission());
+      verifyNever(() => journal.create(audioPath: any(named: 'audioPath')));
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text('Original text'), findsOneWidget);
+      expect(find.text('Original transcription'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'new editor survives resize and protects unsaved body on selection',
+    (tester) async {
+      await mount(tester, width: 390);
+      await newNote(tester);
+      await tester.enterText(find.byType(TextFormField), 'Unsaved thought');
+      await tester.pump(const Duration(milliseconds: 500));
+      final controller = tester
+          .widget<TextFormField>(find.byType(TextFormField))
+          .controller!;
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await resize(tester, 1200);
+      expect(
+        tester.widget<TextFormField>(find.byType(TextFormField)).controller,
+        same(controller),
+      );
+      expect(controller.selection.baseOffset, 4);
+      expect(editCreations, 1);
+      await open(tester, '0');
+      expect(find.text('Save your changes?'), findsOneWidget);
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      expect(controller.text, 'Unsaved thought');
+      await open(tester, '0');
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EntryDetailScreen), findsOneWidget);
+      expect(drafts.values, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'creation recovery requires explicit resume and keeps the reserved ID',
+    (tester) async {
+      drafts.values[EntryEditDraft.creationKey] = EntryEditDraft(
+        source: null,
+        creationId: 'pending',
+        title: 'Recovered title',
+        subtitle: '',
+        body: 'Recovered words',
+        entryDate: DateTime(2026),
+      );
+      when(() => journal.getById('pending')).thenAnswer((_) async => null);
+      await mount(tester);
+      await newNote(tester);
+      expect(find.text('Recovered words'), findsNothing);
+      await tester.tap(find.text('Resume note'));
+      await tester.pumpAndSettle();
+      expect(find.text('Recovered words'), findsOneWidget);
+      expect(drafts.values[EntryEditDraft.creationKey]!.creationId, 'pending');
+    },
+  );
+
+  testWidgets(
+    'recovery never discards a draft when an import occupies its ID',
+    (tester) async {
+      drafts.values[EntryEditDraft.creationKey] = EntryEditDraft(
+        source: null,
+        creationId: '0',
+        title: 'Draft title',
+        subtitle: '',
+        body: 'Uncommitted words',
+        entryDate: DateTime(2026),
+      );
+      await mount(tester);
+      await newNote(tester);
+      expect(find.textContaining('Another saved entry uses'), findsOneWidget);
+      await tester.tap(find.text('Resume note'));
+      await tester.pumpAndSettle();
+      expect(find.text('Uncommitted words'), findsOneWidget);
+      expect(drafts.values[EntryEditDraft.creationKey]!.creationId, isNot('0'));
+      expect(entries.first.transcription, 'Thought 0');
+    },
+  );
+
+  testWidgets(
+    'recovery after commit opens saved note instead of creating a copy',
+    (tester) async {
+      drafts.values[EntryEditDraft.creationKey] = EntryEditDraft(
+        source: null,
+        creationId: '0',
+        title: '',
+        subtitle: '',
+        body: 'Thought 0',
+        entryDate: DateTime(2026),
+      );
+      await mount(tester);
+      await newNote(tester);
+      expect(find.byType(EntryDetailScreen), findsOneWidget);
+      expect(find.byType(EntryEditScreen), findsNothing);
+      expect(drafts.values, isEmpty);
+      verifyNever(
+        () => journal.createTyped(
+          id: any(named: 'id'),
+          text: any(named: 'text'),
+          title: any(named: 'title'),
+          subTitle: any(named: 'subTitle'),
+        ),
+      );
+    },
+  );
 
   for (final width in [390.0, 1000.0]) {
     testWidgets('silent capture shows a snackbar at width $width', (

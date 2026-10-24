@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -9,9 +11,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:smartnotes/application/journal_lifecycle.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/routes/app_route.dart';
+import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/data/datasources/local/local_database.dart';
 import 'package:smartnotes/data/datasources/local/sqlite_journal_entry_service.dart';
+import 'package:smartnotes/data/services/local_entry_draft_repository.dart';
+import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_screen.dart';
+import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_store.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart';
@@ -43,7 +49,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'repeated sidebar selections use the native SQLite worker safely',
+    'native journal supports repeated selections and audio-free typed capture',
     (tester) async {
       final directory = await (await getTemporaryDirectory()).createTemp(
         'adaptive-journal-',
@@ -92,6 +98,12 @@ void main() {
       GetIt.I.registerSingleton<HomeStore>(home);
       GetIt.I.registerFactory<EntryDetailStore>(
         () => EntryDetailStore(journal, process, MemoryFormattingModels()),
+      );
+      final drafts = LocalEntryDraftRepository.inDirectory(
+        Directory('${directory.path}/drafts'),
+      );
+      GetIt.I.registerFactory<EntryEditStore>(
+        () => EntryEditStore(journal, drafts),
       );
       addTearDown(() async {
         home.dispose();
@@ -155,6 +167,42 @@ void main() {
         expect(await database.entry(entries[index].id), entries[index]);
         expect(tester.takeException(), isNull);
       }
+      router.innerRouterOf<StackRouter>(HomeRoute.name)!.popUntilRoot();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Write a note'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Typed on device');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      for (
+        var frame = 0;
+        frame < 100 && find.byType(TextFormField).evaluate().isEmpty;
+        frame++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byType(EntryEditScreen), findsOneWidget);
+      await tester.enterText(
+        find.byType(TextFormField),
+        'An isolated typed thought.',
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      for (
+        var frame = 0;
+        frame < 100 && find.byType(EntryDetailScreen).evaluate().isEmpty;
+        frame++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byType(EntryDetailScreen), findsOneWidget);
+      final typed = (await database.all()).singleWhere(
+        (entry) => entry.title == 'Typed on device',
+      );
+      expect(typed.audioPath, isNull);
+      expect(typed.status, EntryStatus.completed);
+      expect(typed.transcription, 'An isolated typed thought.');
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     },

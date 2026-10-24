@@ -4,12 +4,14 @@ SmartNotes is a personal voice journal. A person captures recordings and keeps a
 
 ## Language
 
-**Journal entry**: A saved recording and its note, including the original transcription, optional transformed content, title, subtitle, dates, and processing status. An entry exists before transcription succeeds and needs no AI transformation to be complete.
+**Journal entry**: A saved recording and its note, or a note captured by typing, including the original source text, optional transformed content, title, subtitle, dates, and processing status. A recorded entry exists before transcription succeeds; a typed entry exists only after its nonblank body is saved. Neither needs AI transformation to be complete.
 _Avoid_: Document, message, account-owned note.
 
 **Recording**: The original captured audio, retained for playback and retry. Transcription uses speech at its original speed.
 
 **Transcription**: The original speech represented as text on the device, without uploading audio. Once obtained, it is retained independently of formatting so a retry need not transcribe the recording again.
+
+**Typed capture**: A secondary capture path for quiet or private moments. Optional title and subtitle precede the body editor; the first saved body is retained in the `transcription` field and presented as Original text. Later edits and accepted AI transformations do not overwrite it. Typing needs no recording, model, or network access; initial onboarding requirements remain unchanged.
 
 **Speech model**: Downloaded recognition weights that enable offline transcription for supported spoken languages. Several may be installed; one compatible model must be active before completing setup.
 
@@ -31,7 +33,7 @@ _Avoid_: Document, message, account-owned note.
 
 **AI draft**: A proposed transformation that is not part of the saved journal until the journaler explicitly applies it. Discarding it leaves the current note unchanged.
 
-**Edit draft**: A recoverable, device-local editing buffer tied to the saved entry version it started from. It is separate from the current note, AI drafts, search, and journal backups. Resuming requires an explicit choice; applying it still checks for newer saved content. Draft recovery is best-effort and may not retain the last keystrokes before abrupt termination.
+**Edit draft**: A recoverable, device-local editing buffer tied to the saved entry version it started from, or a new typed capture with no saved source. New captures retain a reserved entry ID for recovery without duplication. It is separate from the current note, AI drafts, search, and journal backups. Resuming requires an explicit choice; applying an existing-entry draft still checks for newer saved content. Draft recovery is best-effort and may not retain the last keystrokes before abrupt termination.
 
 **Immediate Undo**: A session-scoped reversal of the most recently accepted AI transformation. It restores prior editable fields only if the accepted saved version is still current. It is not permanent revision history or restoration of the original recording/transcription.
 

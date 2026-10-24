@@ -335,6 +335,12 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     final source = _store.entry;
     final original = source?.transcription;
     if (original == null) return;
+    final originalLabel = source?.audioPath == null
+        ? l10n.originalText
+        : l10n.originalTranscription;
+    final restoreLabel = source?.audioPath == null
+        ? l10n.restoreOriginalText
+        : l10n.restoreTranscription;
     final restore = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -349,7 +355,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  l10n.originalTranscription,
+                  originalLabel,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -359,7 +365,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                 if (source?.formattedNote != null)
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: Text(l10n.restoreTranscription),
+                    child: Text(restoreLabel),
                   ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -375,8 +381,12 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.restoreTranscription),
-        content: Text(l10n.restoreTranscriptionConfirmation),
+        title: Text(restoreLabel),
+        content: Text(
+          source?.audioPath == null
+              ? l10n.restoreOriginalTextConfirmation
+              : l10n.restoreTranscriptionConfirmation,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -384,7 +394,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.restoreTranscription),
+            child: Text(restoreLabel),
           ),
         ],
       ),
@@ -469,6 +479,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                   Observer(
                     builder: (_) {
                       return _EntryActionsMenu(
+                        isTyped: _store.entry?.audioPath == null,
                         isLoading:
                             _store.isLoading ||
                             _store.isBusy ||
@@ -1129,11 +1140,13 @@ class _EntryActionsMenu extends StatelessWidget {
     required this.isLoading,
     required this.onDelete,
     this.onOriginal,
+    this.isTyped = false,
   });
 
   final bool isLoading;
   final VoidCallback onDelete;
   final VoidCallback? onOriginal;
+  final bool isTyped;
 
   @override
   Widget build(BuildContext context) {
@@ -1158,7 +1171,11 @@ class _EntryActionsMenu extends StatelessWidget {
               children: [
                 const Icon(Icons.subject_outlined),
                 const SizedBox(width: AppSpacing.md),
-                Flexible(child: Text(l10n.originalTranscription)),
+                Flexible(
+                  child: Text(
+                    isTyped ? l10n.originalText : l10n.originalTranscription,
+                  ),
+                ),
               ],
             ),
           ),
