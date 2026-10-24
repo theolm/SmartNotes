@@ -81,6 +81,39 @@ void main() {
     await useCase.process(entry.copyWith(transcription: 'Original speech'));
     verifyNever(() => processing.transcribe(any()));
   });
+  for (final text in [
+    '',
+    '  ',
+    '[BLANK_AUDIO]',
+    '[blank_audio] [SILENCE]',
+    '[NO_SPEECH]',
+  ]) {
+    test('does not persist non-speech transcript: $text', () async {
+      when(() => processing.transcribe(any())).thenAnswer((_) async => text);
+      await expectLater(
+        useCase.process(entry),
+        throwsA(
+          isA<AiFailure>().having(
+            (e) => e.code,
+            'code',
+            AiFailureCode.noSpeech,
+          ),
+        ),
+      );
+      verifyNever(
+        () => journal.update(any(), expected: any(named: 'expected')),
+      );
+      verifyNever(() => processing.generateMetadata(any()));
+    });
+  }
+  test('keeps actual words alongside non-speech markers', () async {
+    when(() => processing.transcribe(any())).thenAnswer(
+      (_) async => '[BLANK_AUDIO] A quiet sentence. [BLANK_AUDIO]',
+    );
+    final result = await useCase.process(entry);
+    expect(result.transcription, 'A quiet sentence.');
+    expect(result.status, EntryStatus.completed);
+  });
   test(
     'saves transcription before generating metadata without rewriting it',
     () async {

@@ -78,7 +78,7 @@ context.maybePop();
 Use `app/pubspec.yaml` and `app/pubspec.lock` as the source of truth for
 dependency constraints and resolved versions. Before upgrading generators,
 resolve compatible analyzer constraints and rerun generation, analysis, and
-tests. The former Hive generator constraint is obsolete.
+tests.
 
 Journal routes use `LocalLockGuard` for the optional on-device app lock.
 There are no login, profile, or account-password routes.
@@ -87,6 +87,6 @@ There are no login, profile, or account-password routes.
 
 `app_route.gr.dart` is generated. Run the build_runner command after any change to `app_route.dart` or any `@RoutePage()` annotation.
 
-## ADR reference
+## Architecture reference
 
-See `docs/adr/006-plain-material-navigation.md` for the full architectural decision record.
+See the navigation section in `../architecture.md` for the required routing and guard rules.

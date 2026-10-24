@@ -94,6 +94,30 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @journalSelectEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an entry'**
+  String get journalSelectEntry;
+
+  /// No description provided for @journalSelectEntryHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a thought from your journal, or record a new one.'**
+  String get journalSelectEntryHelp;
+
+  /// No description provided for @editorExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand editor'**
+  String get editorExpand;
+
+  /// No description provided for @editorRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show journal alongside editor'**
+  String get editorRestore;
+
   /// No description provided for @journalMaintenance.
   ///
   /// In en, this message translates to:
@@ -1893,6 +1917,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No speech was detected. Your recording is still saved.'**
   String get aiNoSpeech;
+
+  /// No description provided for @recordingNoSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'No speech detected. Try recording again.'**
+  String get recordingNoSpeech;
 
   /// No description provided for @aiIncompleteNote.
   ///

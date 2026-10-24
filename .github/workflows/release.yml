@@ -1,0 +1,385 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (vX.Y.Z)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: "release-${{ inputs.tag || github.ref_name }}"
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      macos_version: ${{ steps.meta.outputs.macos_version }}
+      build_number: ${{ steps.meta.outputs.build_number }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Validate tag and version
+        id: meta
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG' is not valid semver. Expected vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-suffix."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          MACOS_VERSION="${VERSION%%-*}"
+
+          PUBSPEC_VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -1)"
+          PUBSPEC_VERSION="${PUBSPEC_VERSION%%+*}"
+          PUBSPEC_BASE="${PUBSPEC_VERSION%%-*}"
+          if [[ "$VERSION" == *-* ]]; then
+            # Prereleases build the same code as their stable version.
+            if [[ "$PUBSPEC_BASE" != "$MACOS_VERSION" ]]; then
+              echo "::error::app/pubspec.yaml declares version '$PUBSPEC_VERSION' but the tag targets '$MACOS_VERSION'. Update pubspec.yaml before tagging."
+              exit 1
+            fi
+          elif [[ "$PUBSPEC_VERSION" != "$VERSION" ]]; then
+            echo "::error::app/pubspec.yaml declares version '$PUBSPEC_VERSION' but the tag is '$VERSION'. Update pubspec.yaml before tagging."
+            exit 1
+          fi
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          TAGGED_SHA="$(git rev-parse HEAD)"
+          git fetch origin "$DEFAULT_BRANCH" --quiet
+          if ! git merge-base --is-ancestor "$TAGGED_SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "::error::Tagged commit is not on $DEFAULT_BRANCH."
+            exit 1
+          fi
+
+          PRERELEASE=false
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE=true
+          fi
+
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "macos_version=$MACOS_VERSION"
+            echo "build_number=$GITHUB_RUN_NUMBER"
+            echo "prerelease=$PRERELEASE"
+          } >> "$GITHUB_OUTPUT"
+
+  android:
+    name: Android APK
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+
+      - name: Cache pub dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Cache Gradle
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('app/android/**/*.gradle*', 'app/android/gradle/wrapper/gradle-wrapper.properties', 'app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Check signing secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_PASSWORD KEY_ALIAS; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing signing value $name. Check the Android secrets in docs/release.md."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Install Android NDK
+        run: |
+          set -euo pipefail
+          NDK_VERSION="29.0.13113456"
+          if [[ ! -d "$ANDROID_HOME/ndk/$NDK_VERSION" ]]; then
+            SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+            if [[ ! -x "$SDKMANAGER" ]]; then
+              SDKMANAGER="$(command -v sdkmanager)"
+            fi
+            # The runner image does not accept every SDK license.
+            { yes || true; } | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null 2>&1
+            "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "ndk;$NDK_VERSION"
+            if [[ ! -d "$ANDROID_HOME/ndk/$NDK_VERSION" ]]; then
+              echo "::error::Failed to install NDK $NDK_VERSION."
+              exit 1
+            fi
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Configure signing
+        run: |
+          set -euo pipefail
+          mkdir -p android/keystore
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/keystore/keystore.jks
+
+      - name: Build APKs
+        run: flutter build apk --release --split-per-abi --build-name="$VERSION" --build-number="$BUILD_NUMBER"
+
+      - name: Verify APK signatures
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            echo "== $apk"
+            "$APKSIGNER" verify --print-certs "$apk"
+          done
+
+      - name: Stage artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
+              "$GITHUB_WORKSPACE/dist/SmartNotes-${VERSION}-android-${abi}.apk"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-android
+          path: dist/SmartNotes-*-android-*.apk
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  macos:
+    name: macOS DMG
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      MACOS_VERSION: ${{ needs.prepare.outputs.macos_version }}
+      BUILD_NUMBER: ${{ needs.prepare.outputs.build_number }}
+      ARCH: universal
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+
+      - name: Cache pub dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('app/macos/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build macOS app
+        run: flutter build macos --release --build-name="$MACOS_VERSION" --build-number="$BUILD_NUMBER"
+
+      - name: Verify universal binary
+        run: |
+          set -euo pipefail
+          APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)"
+          MAIN="$(find "$APP/Contents/MacOS" -maxdepth 1 -type f -print -quit)"
+          APP_FW="$(find "$APP/Contents/Frameworks/App.framework" -type f -name App -print -quit)"
+          for binary in "$MAIN" "$APP_FW"; do
+            INFO="$(file "$binary")"
+            echo "$INFO"
+            grep -q "arm64" <<<"$INFO"
+            grep -q "x86_64" <<<"$INFO"
+          done
+
+      - name: Package DMG
+        run: |
+          set -euo pipefail
+          APP="$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' -print -quit)"
+          bash tool/release/package_macos.sh "$APP" "$VERSION" "$ARCH" "$GITHUB_WORKSPACE/dist"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-macos
+          path: dist/SmartNotes-*-macos-universal.dmg
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub Release
+    needs: [prepare, android, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    defaults:
+      run:
+        working-directory: .
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify artifacts
+        run: |
+          set -euo pipefail
+          ls -l dist
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            test -f "dist/SmartNotes-${VERSION}-android-${abi}.apk"
+          done
+          test -f "dist/SmartNotes-${VERSION}-macos-universal.dmg"
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum SmartNotes-* > SHA256SUMS.txt
+
+      - name: Compose release notes
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/release-header.md" <<'EOF'
+          ## Install
+
+          **macOS** requires macOS 14 or newer. The DMG is a universal build for Apple Silicon and Intel.
+
+          The macOS app is ad-hoc signed but not notarized, so macOS blocks the first launch. Try to open SmartNotes, then go to **System Settings → Privacy & Security** and click **Open Anyway**. Alternatively, remove the quarantine flag:
+
+          ```sh
+          xattr -dr com.apple.quarantine /Applications/SmartNotes.app
+          ```
+
+          **Android** requires Android 7.0 (API 24) or newer. Download the APK for your device and allow installations from unknown sources:
+
+          - `arm64-v8a` — almost all modern phones (recommended).
+          - `armeabi-v7a` — older 32-bit devices.
+          - `x86_64` — emulators and x86 Chromebooks.
+
+          Verify the downloads against `SHA256SUMS.txt`:
+
+          ```sh
+          sha256sum -c SHA256SUMS.txt    # Linux
+          shasum -a 256 -c SHA256SUMS.txt # macOS
+          ```
+          EOF
+
+          if ! gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$TAG" --jq '.body' > "$RUNNER_TEMP/generated-notes.md"; then
+            echo "_Release notes could not be generated automatically._" > "$RUNNER_TEMP/generated-notes.md"
+          fi
+
+          {
+            cat "$RUNNER_TEMP/release-header.md"
+            echo
+            echo "---"
+            echo
+            cat "$RUNNER_TEMP/generated-notes.md"
+          } > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Publish release
+        run: |
+          set -euo pipefail
+          TITLE="SmartNotes ${VERSION}"
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            CREATE_FLAGS=(--prerelease)
+            EDIT_FLAGS=(--prerelease)
+          else
+            CREATE_FLAGS=(--latest)
+            EDIT_FLAGS=(--prerelease=false --latest)
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" \
+              --title "$TITLE" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${EDIT_FLAGS[@]}"
+          else
+            gh release create "$TAG" dist/* \
+              --verify-tag \
+              --title "$TITLE" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${CREATE_FLAGS[@]}"
+          fi

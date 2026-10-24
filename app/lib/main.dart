@@ -12,7 +12,6 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/application/journal_lifecycle.dart';
 import 'package:smartnotes/data/services/model_verification.dart';
 import 'package:smartnotes/data/services/processing_feedback_service.dart';
-import 'package:smartnotes/core/routes/app_route.gr.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +47,7 @@ void main() async {
     final processingFeedback = getIt<ProcessingFeedbackService>();
     processingFeedback.entryOpens.listen(
       (entryId) => unawaited(
-        appRouter.push<void>(EntryDetailRoute(entryId: entryId)),
+        appRouter.openJournalEntry(entryId),
       ),
     );
     unawaited(processingFeedback.initialize());
