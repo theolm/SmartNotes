@@ -14,6 +14,18 @@ The workflow runs when a semver tag is pushed and produces:
 Android APKs are split per ABI to keep each download small. The release is only
 created after all build jobs succeed.
 
+## CI validation
+
+PR checks and release builds use Flutter 3.47.6, pinned to its full Git revision
+in `app/tool/ci/setup_flutter.sh`. Update the version and revision together when
+deliberately upgrading the SDK.
+
+The required `pr-checks` job runs code generation, analysis, Flutter tests, and
+an ARM64 Android release build. It uses a disposable signing key and a separate
+application ID (`dev.theolm.smartnotes.ci`), never the production signing secrets.
+CI APKs are not published. This build covers native compilation and R8, but does
+not replace the device startup and model download checks described below.
+
 ## Cutting a release
 
 1. Update `version:` in `app/pubspec.yaml` to the release version. The build suffix
