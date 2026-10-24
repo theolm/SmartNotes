@@ -39,7 +39,7 @@ class LocalEntryDraftRepository implements IEntryDraftRepository {
     final draft = EntryEditDraft.fromJson(
       jsonDecode(await file.readAsString()) as Map<String, dynamic>,
     );
-    if (draft.source.id != id) {
+    if (draft.id != id || (draft.source == null && draft.creationId == null)) {
       throw const FormatException('Invalid edit draft');
     }
     return draft;
@@ -47,7 +47,7 @@ class LocalEntryDraftRepository implements IEntryDraftRepository {
 
   @override
   Future<void> write(EntryEditDraft draft) => _serial(() async {
-    final file = await _file(draft.source.id);
+    final file = await _file(draft.id);
     final temporary = File('${file.path}.tmp');
     await temporary.writeAsString(jsonEncode(draft.toJson()), flush: true);
     await temporary.rename(file.path);

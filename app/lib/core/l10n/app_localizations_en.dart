@@ -9,6 +9,44 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get writeNote => 'Write a note';
+
+  @override
+  String get discardNewNoteTitle => 'Discard this new note?';
+
+  @override
+  String get resumeNewNoteTitle => 'Resume your note?';
+
+  @override
+  String get resumeNewNoteHelp => 'An unfinished note is saved on this device.';
+
+  @override
+  String get resumeNewNoteConflictHelp =>
+      'Another saved entry uses this note\'s identifier. Resume to keep your draft as a separate new note; the saved entry will not change.';
+
+  @override
+  String get resumeNewNote => 'Resume note';
+
+  @override
+  String get newNoteTitle => 'New note';
+
+  @override
+  String get continueToNote => 'Continue';
+
+  @override
+  String get noteBodyRequired => 'Write something before saving your note.';
+
+  @override
+  String get originalText => 'Original text';
+
+  @override
+  String get restoreOriginalText => 'Restore original text';
+
+  @override
+  String get restoreOriginalTextConfirmation =>
+      'Replace the current note with its original text?';
+
+  @override
   String get journalSelectEntry => 'Select an entry';
 
   @override

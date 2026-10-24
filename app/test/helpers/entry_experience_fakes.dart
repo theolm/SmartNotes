@@ -14,7 +14,7 @@ class MemoryEntryDrafts implements IEntryDraftRepository {
   @override
   Future<void> write(EntryEditDraft draft) async {
     if (fail) throw Exception('Unavailable');
-    values[draft.source.id] = draft;
+    values[draft.id] = draft;
   }
 
   @override

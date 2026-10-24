@@ -660,43 +660,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'original restoration asks for confirmation before replacing edits',
-    (tester) async {
-      final now = DateTime(2026);
-      final entry = JournalEntry(
-        id: '1',
-        createdAt: now,
-        updatedAt: now,
-        status: EntryStatus.completed,
-        title: 'My title',
-        transcription: 'Original words',
-        formattedNote: 'Edited words',
-      );
-      when(() => mockService.getById('1')).thenAnswer((_) async => entry);
-      when(
-        () => mockUseCase.restoreTranscription(entry),
-      ).thenAnswer((_) async => entry.copyWith(formattedNote: null));
-      await tester.pumpWidget(
-        _TestableEntryDetailScreen(store: store, entryId: '1'),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Original transcription'));
-      await tester.pumpAndSettle();
-      expect(find.text('Original words'), findsOneWidget);
-      await tester.tap(find.text('Restore original transcription'));
-      await tester.pumpAndSettle();
-      verifyNever(() => mockUseCase.restoreTranscription(any()));
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Restore original transcription'),
-      );
-      await tester.pumpAndSettle();
-      expect(store.entry!.body, 'Original words');
-      expect(store.entry!.title, 'My title');
-    },
-  );
+  for (final typed in [false, true]) {
+    testWidgets(
+      'original restoration asks for confirmation before replacing edits (typed: $typed)',
+      (tester) async {
+        final now = DateTime(2026);
+        final entry = JournalEntry(
+          id: '1',
+          createdAt: now,
+          updatedAt: now,
+          status: EntryStatus.completed,
+          title: 'My title',
+          transcription: 'Original words',
+          formattedNote: 'Edited words',
+          audioPath: typed ? null : '/isolated/recording.m4a',
+        );
+        when(() => mockService.getById('1')).thenAnswer((_) async => entry);
+        when(
+          () => mockUseCase.restoreTranscription(entry),
+        ).thenAnswer((_) async => entry.copyWith(formattedNote: null));
+        await tester.pumpWidget(
+          _TestableEntryDetailScreen(store: store, entryId: '1'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(typed ? 'Original text' : 'Original transcription'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Original words'), findsOneWidget);
+        final restoreLabel = typed
+            ? 'Restore original text'
+            : 'Restore original transcription';
+        await tester.tap(find.text(restoreLabel));
+        await tester.pumpAndSettle();
+        verifyNever(() => mockUseCase.restoreTranscription(any()));
+        await tester.tap(
+          find.widgetWithText(FilledButton, restoreLabel),
+        );
+        await tester.pumpAndSettle();
+        expect(store.entry!.body, 'Original words');
+        expect(store.entry!.title, 'My title');
+      },
+    );
+  }
 
   testWidgets('hides retry/reformat when processing', (tester) async {
     final now = DateTime.now();

@@ -132,8 +132,8 @@ class SqliteJournalEntryService implements IJournalEntryService {
   @override
   Future<JournalEntry?> getById(String id) async {
     final entry = await _database.entry(id);
-    return entry == null
-        ? null
+    return entry == null || entry.audioPath == null
+        ? entry
         : _resolveAudio(entry, await _files.getAudioDirectoryPath());
   }
 
@@ -153,6 +153,31 @@ class SqliteJournalEntryService implements IJournalEntryService {
         ? entry.copyWith(audioPath: p.relative(audioPath, from: directory))
         : entry;
     await _database.insertEntry(stored);
+    return entry;
+  }
+
+  @override
+  Future<JournalEntry> createTyped({
+    required String id,
+    required String text,
+    String? title,
+    String? subTitle,
+  }) async {
+    if (text.trim().isEmpty) {
+      throw ArgumentError.value(null, 'text', 'Note text must not be blank');
+    }
+    final now = DateTime.now();
+    final entry = JournalEntry(
+      id: id,
+      createdAt: now,
+      updatedAt: now,
+      entryDate: now,
+      transcription: text,
+      title: title?.trim().isEmpty == true ? null : title,
+      subTitle: subTitle?.trim().isEmpty == true ? null : subTitle,
+      status: EntryStatus.completed,
+    );
+    await _database.insertEntry(entry, exclusive: true);
     return entry;
   }
 

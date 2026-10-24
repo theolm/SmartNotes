@@ -94,6 +94,16 @@ component-specific styling.
   screens; Save commits all fields. Dismissing the panel retains edits.
   Dirty Back offers Save (through the same metadata review),
   Discard, and Keep editing; local recovery drafts need explicit Resume/Discard.
+- Typed capture is secondary: a neutral pencil in the journal top bar opens
+  optional title and subtitle in a bottom sheet (a bounded dialog in wide
+  windows). Continue opens the existing body editor with body focus; it does
+  not create a timeline entry. The first Save requires nonblank body text and
+  commits directly without repeating metadata review. Creation uses the same
+  dirty-exit and local recovery protections as editing. The first saved body is
+  literal text and remains available as Original text, including after edits or
+  accepted AI formatting. Typed notes show no audio or retranscription controls;
+  their AI actions remain post-save, optional, and preview-first. Recording keeps
+  its existing dominant button and one-tap behavior. Initial setup is unchanged.
 - The wand keeps its action bottom sheet and preview-first flow. The sheet opens
   before formatting-model readiness is known and shows a compact preparing or
   model-needed state inside it. Never hash model weights before presenting the
