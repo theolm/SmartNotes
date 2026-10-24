@@ -33,6 +33,20 @@ This document defines the architecture that all SmartNotes code must follow. It 
 
 Pinned native dependencies must remain pinned unless a deliberate upgrade is validated across Android, iOS, and macOS. Do not add a second state-management, dependency-injection, routing, or database package.
 
+### Android build toolchain
+
+The app compiles against API 37 with AGP 9.4.1 and Gradle 9.8.2. Keep `minSdk`
+at 24 and `targetSdk` tied to Flutter's default; raising `compileSdk` alone must
+not opt users into new target-SDK runtime behavior. This compile SDK prepares
+the app for dependencies requiring API 37 without changing their versions here.
+
+Kotlin remains at 2.4.21, the latest stable release checked for this upgrade.
+Its published fully supported range ends at AGP 9.3.1 and Gradle 9.7.0.
+Successful project builds outside that range are project-specific validation,
+not a claim of upstream full support. Do not introduce prerelease Kotlin or
+suppress compatibility checks to hide this gap. Validate optimized Android
+builds and isolated device tests when changing this combination.
+
 ## 3. Project layout
 
 ```text

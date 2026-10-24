@@ -15,7 +15,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "dev.theolm.smartnotes"
-    compileSdk = flutter.compileSdkVersion
+    // Compile against API 37 without opting into new target-SDK behavior.
+    compileSdk = 37
     ndkVersion = "29.0.13113456"
 
     compileOptions {
@@ -71,6 +72,6 @@ flutter {
 }
 
 dependencies {
-    implementation("androidx.work:work-runtime-ktx:2.10.5")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
 }
