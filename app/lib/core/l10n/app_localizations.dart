@@ -2284,6 +2284,36 @@ abstract class AppLocalizations {
   /// **'Text'**
   String get textSearch;
 
+  /// No description provided for @formattingModelCapabilityQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger model for detailed organization and rewriting.'**
+  String get formattingModelCapabilityQuality;
+
+  /// No description provided for @formattingModelMemoryQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses more memory and may be slower. Best suited to powerful devices; speed and quality vary.'**
+  String get formattingModelMemoryQuality;
+
+  /// No description provided for @formattingModelTermsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma Terms of Use'**
+  String get formattingModelTermsTitle;
+
+  /// No description provided for @formattingModelTermsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Before downloading Gemma 3, review and accept Google\'s Gemma Terms of Use and incorporated use restrictions.'**
+  String get formattingModelTermsMessage;
+
+  /// No description provided for @formattingModelAcceptTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept and download'**
+  String get formattingModelAcceptTerms;
+
   /// No description provided for @embeddingModelSelectionHelp.
   ///
   /// In en, this message translates to:

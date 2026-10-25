@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -98,10 +99,12 @@ class _FormattingModelRow extends StatelessWidget {
   String _capability(AppLocalizations l10n) => switch (model.kind) {
     FormattingModelKind.light => l10n.formattingModelCapabilityLight,
     FormattingModelKind.balanced => l10n.formattingModelCapabilityBalanced,
+    FormattingModelKind.quality => l10n.formattingModelCapabilityQuality,
   };
   String _memory(AppLocalizations l10n) => switch (model.kind) {
     FormattingModelKind.light => l10n.formattingModelMemoryLight,
     FormattingModelKind.balanced => l10n.formattingModelMemoryBalanced,
+    FormattingModelKind.quality => l10n.formattingModelMemoryQuality,
   };
 
   @override
@@ -210,8 +213,37 @@ class _FormattingModelRow extends StatelessWidget {
           : (store.partial[model.id] ?? 0) > 0
           ? l10n.formattingModelResumeDownload
           : l10n.formattingModelDownload,
-      onPressed: store.busy ? null : () => store.downloadOne(model.id),
+      onPressed: store.busy ? null : () => _download(context, l10n),
     );
+  }
+
+  Future<void> _download(BuildContext context, AppLocalizations l10n) async {
+    if (model.requiresGemmaTerms) {
+      final terms = await rootBundle.loadString(
+        'assets/licenses/gemma-NOTICE.txt',
+      );
+      if (!context.mounted) return;
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          scrollable: true,
+          title: Text(l10n.formattingModelTermsTitle),
+          content: Text('${l10n.formattingModelTermsMessage}\n\n$terms'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: Text(l10n.formattingModelAcceptTerms),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true || !context.mounted) return;
+    }
+    await store.downloadOne(model.id);
   }
 
   Future<void> _confirmDelete(
@@ -262,7 +294,7 @@ class _FormattingModelRow extends StatelessWidget {
               Text(l10n.formattingModelNoteLimit),
               const SizedBox(height: AppSpacing.md),
               Text(
-                '${l10n.formattingModelLicense}: Apache-2.0 · ${localModelSize(context, model.bytes)} · ${model.quantization}',
+                '${l10n.formattingModelLicense}: ${model.license} · ${localModelSize(context, model.bytes)} · ${model.quantization}',
               ),
             ],
           ),

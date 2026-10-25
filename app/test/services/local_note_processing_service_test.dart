@@ -287,6 +287,18 @@ void main() {
         expect(session.messages!.first.content, contains('Presentation:'));
         expect(
           session.messages!.first.content,
+          contains(
+            'Write all three fields in the same language as the transcription.',
+          ),
+        );
+        expect(
+          session.messages!.first.content,
+          contains(
+            'Write the markdown body in the same language as the transcription; never translate it.',
+          ),
+        );
+        expect(
+          session.messages!.first.content,
           contains('The markdown field is the note body only.'),
         );
         expect(

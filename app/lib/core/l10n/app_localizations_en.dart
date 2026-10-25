@@ -1269,6 +1269,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get textSearch => 'Text';
 
   @override
+  String get formattingModelCapabilityQuality =>
+      'Larger model for detailed organization and rewriting.';
+
+  @override
+  String get formattingModelMemoryQuality =>
+      'Uses more memory and may be slower. Best suited to powerful devices; speed and quality vary.';
+
+  @override
+  String get formattingModelTermsTitle => 'Gemma Terms of Use';
+
+  @override
+  String get formattingModelTermsMessage =>
+      'Before downloading Gemma 3, review and accept Google\'s Gemma Terms of Use and incorporated use restrictions.';
+
+  @override
+  String get formattingModelAcceptTerms => 'Accept and download';
+
+  @override
   String get embeddingModelSelectionHelp =>
       'Find journal entries by meaning, entirely on this device.';
 

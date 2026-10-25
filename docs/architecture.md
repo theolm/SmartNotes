@@ -278,7 +278,11 @@ Search:
 Every model is a pinned artifact with an ID, file name, download URL, byte size, and SHA-256. Catalogs are typed domain entities.
 
 - Speech: six Whisper artifacts, including English-only and multilingual options.
-- Formatting: two Qwen3 artifacts, one light and one balanced.
+- Formatting: Qwen3 0.6B Q8 (light), Qwen3 1.7B Q4_K_M (balanced),
+  Qwen3-4B-Instruct-2507 Q4_K_M and Gemma 3 4B IT Q4_K_M (larger optional
+  choices). The conservative recommendation remains on the existing small
+  models; 4B options do not imply a measured quality or speed guarantee.
+  Gemma downloads require explicit acceptance of the bundled Gemma terms.
 - Embeddings: Qwen3-Embedding 0.6B Q8 and EmbeddingGemma 300M Q8. The pinned
   EmbeddingGemma 2 and multilingual-e5-small candidates are visible but cannot be
   downloaded or activated until runtime and retrieval validation passes. An
@@ -329,7 +333,9 @@ Speech:
 
 Formatting:
 
-- Use `llamadart` with the Qwen chat template and thinking disabled.
+- Use `llamadart` with each GGUF's embedded chat template and thinking disabled.
+  Qwen3-4B-Instruct-2507 is non-thinking-only. Gemma uses its own template and
+  text-only inference; do not download or load a vision projector.
 - The context budget is 4,096 tokens: 1,536 reserved output tokens and 64 safety tokens. Reject oversized input; never silently truncate or summarize.
 - Return JSON with exactly the required string fields. Reject malformed, incomplete, or empty output.
 - Generate an unsaved preview first. Persist only after explicit acceptance. Preserve the recording, original transcription, entry date, and creation timestamp.
@@ -476,6 +482,12 @@ Model checks and journal recovery must never delay route protection or the first
 - Test services at their interface boundary. Test persistence migrations against a temporary database.
 - Do not download real models in unit tests. Use small fixtures and injected clients.
 - Real-model and device tests are opt-in. Use a separate application ID or test install; device tests may uninstall the app and erase data.
+- `integration_test/local_formatting_platform_test.dart` accepts
+  `FORMATTING_MODEL_PATH` and `FORMATTING_MODEL_ID` to exercise any pinned
+  formatting artifact offline (metadata and every preset). Accept the model's
+  license before obtaining it; the test never downloads weights. Catalog/unit
+  coverage is not evidence of native compatibility, fidelity or acceptable
+  latency: validate the new 4B artifacts on target platforms separately.
 - Native macOS integration coverage for adaptive entry selection lives in
   `integration_test/adaptive_journal_platform_test.dart`. It opens only a generated
   temporary journal, runs the actual SQLite worker and nested routes, and never

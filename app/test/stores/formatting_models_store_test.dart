@@ -39,6 +39,32 @@ class _ControlledFormattingModels extends MemoryFormattingModels {
 }
 
 void main() {
+  for (final model in [
+    FormattingModel.qwen3_4bInstruct,
+    FormattingModel.gemma3_4b,
+  ]) {
+    test(
+      '${model.id} supports explicit selection, stable order and removal',
+      () async {
+        final store = FormattingModelsStore(
+          MemoryFormattingModels(ready: false),
+          MemoryDeviceProfile(),
+        );
+        await store.load();
+        final order = store.orderedCatalog.map((m) => m.id).toList();
+        await store.downloadOne(FormattingModel.qwen3_0_6b.id);
+        await store.downloadOne(model.id);
+        expect(store.activeId, FormattingModel.qwen3_0_6b.id);
+        expect(await store.activate(model.id), isTrue);
+        expect(store.orderedCatalog.map((m) => m.id), order);
+        await store.remove(model.id);
+        expect(store.ready(model.id), isTrue);
+        await store.activate(FormattingModel.qwen3_0_6b.id);
+        await store.remove(model.id);
+        expect(store.ready(model.id), isFalse);
+      },
+    );
+  }
   test(
     'pending legacy verification is visible and does not block loading the catalog',
     () async {
