@@ -110,8 +110,8 @@ class UnifiedSearchControls extends StatelessWidget {
                         failure == AiFailureCode.invalidEmbedding.name)
                       TextButton(
                         onPressed: () =>
-                            context.pushRoute(const SearchSettingsRoute()),
-                        child: Text(l10n.modelSetup),
+                            context.pushRoute(const EmbeddingModelsRoute()),
+                        child: Text(l10n.embeddingModelManage),
                       ),
                   ],
                 ),

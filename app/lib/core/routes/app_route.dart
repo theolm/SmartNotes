@@ -60,5 +60,6 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: BackupSettingsRoute.page, guards: [LocalLockGuard()]),
     AutoRoute(page: SpeechModelsRoute.page, guards: [LocalLockGuard()]),
     AutoRoute(page: FormattingModelsRoute.page, guards: [LocalLockGuard()]),
+    AutoRoute(page: EmbeddingModelsRoute.page, guards: [LocalLockGuard()]),
   ];
 }

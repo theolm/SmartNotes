@@ -16,29 +16,30 @@ class _InstalledModel implements IFormattingModelService {
   @override
   Future<ModelCheckState> readiness({String? modelId, bool verify = false}) =>
       _download.readiness(modelId: modelId, verify: verify);
-  _InstalledModel(String path)
+  _InstalledModel(String path, this.selected)
     : _download = LocalModelDownload(
         MockClient(
           (_) async => throw StateError('Native formatting must be offline'),
         ),
-        model: FormattingModel.qwen3_1_7b,
+        model: selected,
         directory: () async => Directory(p.dirname(path)),
         folder: '',
       );
 
   final LocalModelDownload _download;
+  final FormattingModel selected;
 
   @override
-  List<FormattingModel> get catalog => [FormattingModel.qwen3_1_7b];
+  List<FormattingModel> get catalog => [selected];
 
   @override
-  String? get configuredModelId => FormattingModel.qwen3_1_7b.id;
+  String? get configuredModelId => selected.id;
 
   @override
-  String get activeModelId => FormattingModel.qwen3_1_7b.id;
+  String get activeModelId => selected.id;
 
   @override
-  FormattingModel? get activeModel => FormattingModel.qwen3_1_7b;
+  FormattingModel? get activeModel => selected;
 
   @override
   Future<bool> isReady([String? modelId]) => _download.isReady();
@@ -77,18 +78,38 @@ class _UnusedTranscription implements ITranscriptionService {
 /// Opt-in real GGUF smoke test, not a multilingual fidelity benchmark.
 /// flutter test integration_test/local_formatting_platform_test.dart -d macos
 /// --dart-define=FORMATTING_MODEL_PATH=/absolute/path/Qwen3-1.7B-Q4_K_M.gguf
+/// Select another catalog artifact with --dart-define=FORMATTING_MODEL_ID=...
+/// Download separately after accepting its license; this test never downloads.
 /// Does not read or write the user's journal, settings, credentials or models.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const path = String.fromEnvironment('FORMATTING_MODEL_PATH');
-  final models = _InstalledModel(path);
+  const id = String.fromEnvironment(
+    'FORMATTING_MODEL_ID',
+    defaultValue: 'qwen3-1.7b-q4_k_m',
+  );
+  final selected = FormattingModel.find(id);
+  if (selected == null) throw ArgumentError.value(id, 'FORMATTING_MODEL_ID');
+  final models = _InstalledModel(path, selected);
   final service = LocalNoteProcessingService(
     models,
     _UnusedTranscription(),
     LocalInferenceQueue(),
   );
+  testWidgets('real ${selected.id} generates metadata offline', (tester) async {
+    final metadata = await service.generateMetadata(
+      'Hoje conversei com Marina sobre o projeto em Lisboa. Não vou viajar amanhã.',
+    );
+    expect(metadata, isNotNull);
+    expect(metadata!.title, isNotEmpty);
+    expect(metadata.subTitle, isNotEmpty);
+    expect(
+      '${metadata.title} ${metadata.subTitle}',
+      isNot(contains('<think>')),
+    );
+  }, skip: path.isEmpty);
   for (final action in AiAction.values) {
-    testWidgets('real Qwen formats Portuguese ${action.name} offline', (
+    testWidgets('real ${selected.id} formats Portuguese ${action.name} offline', (
       tester,
     ) async {
       expect(await models.isReady(), true);
@@ -111,7 +132,9 @@ void main() {
     'Hablé con Marina sobre el proyecto en Lisboa. No voy a viajar mañana.',
     'J’ai parlé avec Marina du projet à Lisbonne. Je ne voyagerai pas demain.',
   ]) {
-    testWidgets('real Qwen preserves source language: $source', (tester) async {
+    testWidgets('real ${selected.id} preserves source language: $source', (
+      tester,
+    ) async {
       final note = await service.formatTranscription(
         action: AiAction.faithfulTranscription,
         transcription: source,

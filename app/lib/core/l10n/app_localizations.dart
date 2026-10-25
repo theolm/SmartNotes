@@ -94,6 +94,174 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @embeddingCatalogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Available models'**
+  String get embeddingCatalogTitle;
+
+  /// No description provided for @embeddingModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search model'**
+  String get embeddingModelsTitle;
+
+  /// No description provided for @embeddingModelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get embeddingModelConfirm;
+
+  /// No description provided for @embeddingModelSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {modelName}?'**
+  String embeddingModelSwitchTitle(String modelName);
+
+  /// No description provided for @embeddingModelActiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Active model'**
+  String get embeddingModelActiveTitle;
+
+  /// No description provided for @embeddingModelCheckingSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking active model…'**
+  String get embeddingModelCheckingSelection;
+
+  /// No description provided for @embeddingModelReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get embeddingModelReady;
+
+  /// No description provided for @embeddingModelDownloadNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Download needed'**
+  String get embeddingModelDownloadNeeded;
+
+  /// No description provided for @embeddingModelRepairNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs repair'**
+  String get embeddingModelRepairNeeded;
+
+  /// No description provided for @embeddingModelManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage search model'**
+  String get embeddingModelManage;
+
+  /// No description provided for @embeddingModelsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable models'**
+  String get embeddingModelsUnavailable;
+
+  /// No description provided for @embeddingModelSwitchingFromActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Your current model stays active until the new one is ready.'**
+  String get embeddingModelSwitchingFromActive;
+
+  /// No description provided for @embeddingModelTermsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma Terms of Use'**
+  String get embeddingModelTermsTitle;
+
+  /// No description provided for @embeddingModelTermsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing, you agree to the Gemma Terms of Use below, including the use restrictions in section 3.2 and the incorporated Prohibited Use Policy. Model installation does not upload your journal.'**
+  String get embeddingModelTermsMessage;
+
+  /// No description provided for @embeddingModelDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading…'**
+  String get embeddingModelDownloading;
+
+  /// No description provided for @embeddingCatalogHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Install more than one model and choose which one powers search by meaning. Changing models rebuilds the semantic index; your notes and word search stay available.'**
+  String get embeddingCatalogHelp;
+
+  /// No description provided for @embeddingModelSwitching.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the new search model. You can keep using your journal.'**
+  String get embeddingModelSwitching;
+
+  /// No description provided for @embeddingModelSwitchConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the search model rebuilds the semantic index in the background. Your notes, recordings and word search are preserved. Meaning-based results may be incomplete until indexing finishes.'**
+  String get embeddingModelSwitchConfirmation;
+
+  /// No description provided for @embeddingModelActivationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not activate this search model. The previous model and index are unchanged.'**
+  String get embeddingModelActivationFailed;
+
+  /// No description provided for @embeddingModelRemovalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove this model. Select a different active model first and try again.'**
+  String get embeddingModelRemovalFailed;
+
+  /// No description provided for @embeddingModelUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available yet: runtime compatibility and search quality must be validated first.'**
+  String get embeddingModelUnsupported;
+
+  /// No description provided for @embeddingModelE5Unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available yet: tested GGUF conversions did not pass multilingual retrieval validation.'**
+  String get embeddingModelE5Unavailable;
+
+  /// No description provided for @embeddingModelDimensions.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} dimensions'**
+  String embeddingModelDimensions(int count);
+
+  /// No description provided for @embeddingModelSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Use model'**
+  String get embeddingModelSelect;
+
+  /// No description provided for @embeddingModelVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get embeddingModelVerify;
+
+  /// No description provided for @embeddingModelDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get embeddingModelDownload;
+
+  /// No description provided for @embeddingModelResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get embeddingModelResume;
+
+  /// No description provided for @embeddingModelDeleteConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the downloaded search model? Your notes and recordings will not be deleted.'**
+  String get embeddingModelDeleteConfirmation;
+
   /// No description provided for @writeNote.
   ///
   /// In en, this message translates to:
@@ -1141,7 +1309,7 @@ abstract class AppLocalizations {
   /// No description provided for @offlineModelsBody.
   ///
   /// In en, this message translates to:
-  /// **'Transcription: select and manage Whisper models in Settings.\nFormatting: choose an optional AI organization model in Settings.\nSearch: Qwen3 Embedding 0.6B Q8 · 639.2 MB\nInternet is only needed to download or repair models; notes and queries stay on this device.'**
+  /// **'Transcription: select and manage Whisper models in Settings.\nFormatting: choose an optional AI organization model in Settings.\nSearch: install and select an embedding model in Search by meaning settings.\nInternet is only needed to download or repair models; notes and queries stay on this device.'**
   String get offlineModelsBody;
 
   /// No description provided for @aiPreviewTitle.
@@ -1255,7 +1423,7 @@ abstract class AppLocalizations {
   /// No description provided for @embeddingModelMissing.
   ///
   /// In en, this message translates to:
-  /// **'The offline search model is missing or damaged. Open model setup in Settings to download it. Text search and saved notes are still available.'**
+  /// **'The offline search model is missing or damaged. Open Search model in Settings to repair or replace it. Word search and saved notes are still available.'**
   String get embeddingModelMissing;
 
   /// No description provided for @indexIncomplete.
@@ -2115,6 +2283,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Text'**
   String get textSearch;
+
+  /// No description provided for @formattingModelCapabilityQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger model for detailed organization and rewriting.'**
+  String get formattingModelCapabilityQuality;
+
+  /// No description provided for @formattingModelMemoryQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses more memory and may be slower. Best suited to powerful devices; speed and quality vary.'**
+  String get formattingModelMemoryQuality;
+
+  /// No description provided for @formattingModelTermsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma Terms of Use'**
+  String get formattingModelTermsTitle;
+
+  /// No description provided for @formattingModelTermsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Before downloading Gemma 3, review and accept Google\'s Gemma Terms of Use and incorporated use restrictions.'**
+  String get formattingModelTermsMessage;
+
+  /// No description provided for @formattingModelAcceptTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept and download'**
+  String get formattingModelAcceptTerms;
+
+  /// No description provided for @embeddingModelSelectionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Find journal entries by meaning, entirely on this device.'**
+  String get embeddingModelSelectionHelp;
 
   /// No description provided for @semanticSearch.
   ///

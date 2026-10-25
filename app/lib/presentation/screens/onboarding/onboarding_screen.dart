@@ -10,6 +10,7 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/presentation/screens/onboarding/onboarding_store.dart';
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
 import 'package:smartnotes/presentation/widgets/formatting_model_catalog.dart';
+import 'package:smartnotes/presentation/widgets/embedding_model_catalog.dart';
 import 'package:smartnotes/presentation/widgets/speech_model_catalog.dart';
 import 'package:smartnotes/presentation/widgets/model_download_notice.dart';
 
@@ -109,7 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             : step == OnboardingStep.embedding
             ? (_store.isBusy
                   ? null
-                  : _store.embeddingModelReady
+                  : _store.selectedEmbeddingReady
                   ? () => _finish()
                   : _store.downloadModel)
             : (_store.isBusy
@@ -118,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ? _continueFromLanguage
                   : _store.next);
         final primaryLabel = step == OnboardingStep.embedding
-            ? (_store.embeddingModelReady
+            ? (_store.selectedEmbeddingReady
                   ? l10n.onboardingStart
                   : l10n.onboardingModelDownload)
             : step == OnboardingStep.formatting
@@ -282,57 +283,65 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 ),
                               ],
                               if (step == OnboardingStep.embedding) ...[
-                                if (_store.embeddingChecking) ...[
-                                  const LinearProgressIndicator(),
-                                  Text(l10n.onboardingModelVerifying),
-                                ],
-                                ModelDownloadNotice(store: _store.downloads),
-                                Text(
-                                  l10n.onboardingEmbeddingBody,
-                                  style: text.bodyLarge,
-                                ),
-                                const SizedBox(height: AppSpacing.xl),
-                                Text(
-                                  _store.model.name,
-                                  style: text.titleMedium,
-                                ),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                  l10n.onboardingEmbeddingSize(
-                                    (_store.model.bytes / 1000000)
-                                        .toStringAsFixed(1),
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.lg),
-                                if (_store.currentModelReady)
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: Text(l10n.onboardingEmbeddingReady),
+                                if (_store.embeddings != null)
+                                  EmbeddingModelCatalog(
+                                    store: _store.embeddings!,
                                   )
-                                else if (_store.embeddingTransferState ==
-                                    ModelTransferState.cancelled)
-                                  Text(l10n.modelDownloadCancelled)
-                                else if (_store.isDownloading) ...[
-                                  LinearProgressIndicator(
-                                    value:
-                                        _store.downloadedBytes ==
-                                            _store.model.bytes
-                                        ? null
-                                        : _store.downloadProgress,
+                                else ...[
+                                  if (_store.embeddingChecking) ...[
+                                    const LinearProgressIndicator(),
+                                    Text(l10n.onboardingModelVerifying),
+                                  ],
+                                  ModelDownloadNotice(store: _store.downloads),
+                                  Text(
+                                    l10n.onboardingEmbeddingBody,
+                                    style: text.bodyLarge,
+                                  ),
+                                  const SizedBox(height: AppSpacing.xl),
+                                  Text(
+                                    _store.model.name,
+                                    style: text.titleMedium,
                                   ),
                                   const SizedBox(height: AppSpacing.sm),
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: Text(
-                                      _store.downloadedBytes ==
-                                              _store.model.bytes
-                                          ? l10n.onboardingModelVerifying
-                                          : l10n.onboardingModelProgress(
-                                              (_store.downloadProgress * 100)
-                                                  .floor(),
-                                            ),
+                                  Text(
+                                    l10n.onboardingEmbeddingSize(
+                                      (_store.model.bytes / 1000000)
+                                          .toStringAsFixed(1),
                                     ),
                                   ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  if (_store.currentModelReady)
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        l10n.onboardingEmbeddingReady,
+                                      ),
+                                    )
+                                  else if (_store.embeddingTransferState ==
+                                      ModelTransferState.cancelled)
+                                    Text(l10n.modelDownloadCancelled)
+                                  else if (_store.isDownloading) ...[
+                                    LinearProgressIndicator(
+                                      value:
+                                          _store.downloadedBytes ==
+                                              _store.model.bytes
+                                          ? null
+                                          : _store.downloadProgress,
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        _store.downloadedBytes ==
+                                                _store.model.bytes
+                                            ? l10n.onboardingModelVerifying
+                                            : l10n.onboardingModelProgress(
+                                                (_store.downloadProgress * 100)
+                                                    .floor(),
+                                              ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ],
                               const SizedBox(height: AppSpacing.xl),

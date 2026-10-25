@@ -33,7 +33,7 @@ import 'package:smartnotes/data/services/formatting_model_service.dart'
     as _i241;
 import 'package:smartnotes/data/services/journal_archive_service.dart' as _i474;
 import 'package:smartnotes/data/services/local_auth_service.dart' as _i561;
-import 'package:smartnotes/data/services/local_embedding_service.dart' as _i462;
+import 'package:smartnotes/data/services/local_embedding_service.dart' as _i461;
 import 'package:smartnotes/data/services/local_entry_draft_repository.dart'
     as _i1055;
 import 'package:smartnotes/data/services/local_entry_search_service.dart'
@@ -93,6 +93,8 @@ import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_store.dart
 import 'package:smartnotes/presentation/screens/home/home_store.dart' as _i635;
 import 'package:smartnotes/presentation/screens/onboarding/onboarding_store.dart'
     as _i588;
+import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart'
+    as _i739;
 import 'package:smartnotes/presentation/screens/settings/formatting_models_store.dart'
     as _i153;
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart'
@@ -100,7 +102,7 @@ import 'package:smartnotes/presentation/screens/settings/local_data_store.dart'
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart'
     as _i633;
 import 'package:smartnotes/presentation/screens/settings/speech_models_store.dart'
-    as _i461;
+    as _i462;
 import 'package:smartnotes/presentation/stores/model_downloads_store.dart'
     as _i934;
 
@@ -182,20 +184,28 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i537.ModelVerificationStore>(),
     ),
   );
-  gh.lazySingleton<_i212.IJournalArchiveService>(
-    () => _i474.JournalArchiveService(
-      gh<_i877.LocalDatabase>(),
-      gh<_i269.IFileStorageService>(),
-    ),
-  );
   gh.lazySingleton<_i872.IEmbeddingModelService>(
     () => _i1059.EmbeddingModelService(
       gh<_i519.Client>(),
       gh<_i13.IPlatformModelDownloader>(),
       gh<_i406.DeviceProfileService>(),
       gh<_i537.ModelVerificationStore>(),
+      gh<_i877.LocalDatabase>(),
+      gh<_i935.LocalInferenceQueue>(),
     ),
     dispose: _i1059.disposeEmbeddingModelService,
+  );
+  gh.lazySingleton<_i613.IEmbeddingService>(
+    () => _i461.LocalEmbeddingService(
+      gh<_i872.IEmbeddingModelService>(),
+      gh<_i935.LocalInferenceQueue>(),
+    ),
+  );
+  gh.lazySingleton<_i212.IJournalArchiveService>(
+    () => _i474.JournalArchiveService(
+      gh<_i877.LocalDatabase>(),
+      gh<_i269.IFileStorageService>(),
+    ),
   );
   gh.lazySingleton<_i824.ISpeechModelService>(
     () => _i123.SpeechModelService(
@@ -205,6 +215,12 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i406.DeviceProfileService>(),
       gh<_i13.IPlatformModelDownloader>(),
       gh<_i537.ModelVerificationStore>(),
+    ),
+  );
+  gh.lazySingleton<_i158.IEntrySearchService>(
+    () => _i10.LocalEntrySearchService(
+      gh<_i877.LocalDatabase>(),
+      gh<_i613.IEmbeddingService>(),
     ),
   );
   gh.singleton<_i153.FormattingModelsStore>(
@@ -241,6 +257,12 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i824.ISpeechModelService>(),
     ),
   );
+  gh.singleton<_i739.EmbeddingModelsStore>(
+    () => _i739.EmbeddingModelsStore(
+      gh<_i872.IEmbeddingModelService>(),
+      gh<_i934.ModelDownloadsStore>(),
+    ),
+  );
   gh.singleton<_i634.AppStore>(
     () => _i634.AppStore(
       gh<_i822.ILocalAuthService>(),
@@ -249,23 +271,11 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i872.IEmbeddingModelService>(),
     ),
   );
-  gh.singleton<_i461.SpeechModelsStore>(
-    () => _i461.SpeechModelsStore(
+  gh.singleton<_i462.SpeechModelsStore>(
+    () => _i462.SpeechModelsStore(
       gh<_i824.ISpeechModelService>(),
       gh<_i406.DeviceProfileService>(),
       downloads: gh<_i934.ModelDownloadsStore>(),
-    ),
-  );
-  gh.lazySingleton<_i613.IEmbeddingService>(
-    () => _i462.LocalEmbeddingService(
-      gh<_i872.IEmbeddingModelService>(),
-      gh<_i935.LocalInferenceQueue>(),
-    ),
-  );
-  gh.lazySingleton<_i158.IEntrySearchService>(
-    () => _i10.LocalEntrySearchService(
-      gh<_i877.LocalDatabase>(),
-      gh<_i613.IEmbeddingService>(),
     ),
   );
   gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
@@ -274,22 +284,23 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i112.IJournalEntryService>(),
     ),
   );
-  gh.factory<_i588.OnboardingStore>(
-    () => _i588.OnboardingStore(
-      gh<_i633.SettingsStore>(),
-      gh<_i634.AppStore>(),
-      gh<_i872.IEmbeddingModelService>(),
-      gh<_i461.SpeechModelsStore>(),
-      gh<_i153.FormattingModelsStore>(),
-      downloads: gh<_i934.ModelDownloadsStore>(),
-      processingFeedback: gh<_i751.ProcessingFeedbackService>(),
-    ),
-  );
   gh.factory<_i207.EntryDetailStore>(
     () => _i207.EntryDetailStore(
       gh<_i112.IJournalEntryService>(),
       gh<_i926.ProcessAudioNoteUseCase>(),
       gh<_i984.IFormattingModelService>(),
+    ),
+  );
+  gh.factory<_i588.OnboardingStore>(
+    () => _i588.OnboardingStore(
+      gh<_i633.SettingsStore>(),
+      gh<_i634.AppStore>(),
+      gh<_i872.IEmbeddingModelService>(),
+      gh<_i462.SpeechModelsStore>(),
+      gh<_i153.FormattingModelsStore>(),
+      downloads: gh<_i934.ModelDownloadsStore>(),
+      processingFeedback: gh<_i751.ProcessingFeedbackService>(),
+      embeddings: gh<_i739.EmbeddingModelsStore>(),
     ),
   );
   gh.lazySingleton<_i108.JournalLifecycle>(

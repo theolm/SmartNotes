@@ -1,9 +1,9 @@
 import 'package:smartnotes/domain/entities/device_profile.dart';
 import 'package:smartnotes/domain/entities/local_ai_model.dart';
 
-enum FormattingModelKind { light, balanced }
+enum FormattingModelKind { light, balanced, quality }
 
-/// Verified, optional language-model weights for on-device note formatting.
+/// Pinned, optional language-model weights for on-device note formatting.
 class FormattingModel extends LocalAiModel {
   const FormattingModel({
     required super.id,
@@ -14,10 +14,14 @@ class FormattingModel extends LocalAiModel {
     required super.sha256,
     required this.kind,
     required this.quantization,
+    this.requiresGemmaTerms = false,
   });
 
   final FormattingModelKind kind;
   final String quantization;
+  final bool requiresGemmaTerms;
+  String get license =>
+      requiresGemmaTerms ? 'Gemma Terms of Use' : 'Apache-2.0';
 
   static const qwen3_0_6b = FormattingModel(
     id: 'qwen3-0.6b-q8_0',
@@ -43,7 +47,32 @@ class FormattingModel extends LocalAiModel {
     quantization: 'Q4_K_M',
   );
 
-  static const catalog = [qwen3_0_6b, qwen3_1_7b];
+  static const qwen3_4bInstruct = FormattingModel(
+    id: 'qwen3-4b-instruct-2507-q4_k_m',
+    name: 'Qwen3 4B Instruct 2507 Q4_K_M',
+    fileName: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+    url:
+        'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+    bytes: 2497281120,
+    sha256: '3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597',
+    kind: FormattingModelKind.quality,
+    quantization: 'Q4_K_M',
+  );
+
+  static const gemma3_4b = FormattingModel(
+    id: 'gemma-3-4b-it-q4_k_m',
+    name: 'Gemma 3 4B IT Q4_K_M',
+    fileName: 'gemma-3-4b-it-Q4_K_M.gguf',
+    url:
+        'https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/5a3566e716d80f709ed7b79817eaf7733d2a1fce/gemma-3-4b-it-Q4_K_M.gguf',
+    bytes: 2489894016,
+    sha256: '04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19',
+    kind: FormattingModelKind.quality,
+    quantization: 'Q4_K_M',
+    requiresGemmaTerms: true,
+  );
+
+  static const catalog = [qwen3_0_6b, qwen3_1_7b, qwen3_4bInstruct, gemma3_4b];
 
   static FormattingModel? find(String id) {
     for (final model in catalog) {

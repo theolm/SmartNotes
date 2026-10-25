@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -7,6 +8,7 @@ import 'package:smartnotes/domain/entities/formatting_model.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_store.dart';
 import 'package:smartnotes/presentation/widgets/local_model_size.dart';
 import 'package:smartnotes/presentation/widgets/model_download_notice.dart';
+import 'package:smartnotes/presentation/widgets/model_catalog_tile.dart';
 
 String formattingModelError(AppLocalizations l10n, Object error) {
   if (error is FormattingModelException) {
@@ -21,7 +23,6 @@ String formattingModelError(AppLocalizations l10n, Object error) {
 
 class FormattingModelCatalog extends StatelessWidget {
   const FormattingModelCatalog({super.key, required this.store});
-
   final FormattingModelsStore store;
 
   @override
@@ -36,17 +37,14 @@ class FormattingModelCatalog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ModelDownloadNotice(store: store.downloads),
-            Text(
-              switch (recommendation.reason) {
-                FormattingRecommendationReason.unknown =>
-                  l10n.formattingModelEstimateUnknown,
-                FormattingRecommendationReason.economical =>
-                  l10n.formattingModelEstimateEconomical,
-                FormattingRecommendationReason.balanced =>
-                  l10n.formattingModelEstimateBalanced,
-              },
-              style: text.bodyLarge,
-            ),
+            Text(switch (recommendation.reason) {
+              FormattingRecommendationReason.unknown =>
+                l10n.formattingModelEstimateUnknown,
+              FormattingRecommendationReason.economical =>
+                l10n.formattingModelEstimateEconomical,
+              FormattingRecommendationReason.balanced =>
+                l10n.formattingModelEstimateBalanced,
+            }, style: text.bodyLarge),
             const SizedBox(height: AppSpacing.sm),
             Text(
               l10n.formattingModelEstimateDisclaimer,
@@ -95,189 +93,76 @@ class FormattingModelCatalog extends StatelessWidget {
 
 class _FormattingModelRow extends StatelessWidget {
   const _FormattingModelRow({required this.store, required this.model});
-
   final FormattingModelsStore store;
   final FormattingModel model;
 
   String _capability(AppLocalizations l10n) => switch (model.kind) {
     FormattingModelKind.light => l10n.formattingModelCapabilityLight,
     FormattingModelKind.balanced => l10n.formattingModelCapabilityBalanced,
+    FormattingModelKind.quality => l10n.formattingModelCapabilityQuality,
   };
-
   String _memory(AppLocalizations l10n) => switch (model.kind) {
     FormattingModelKind.light => l10n.formattingModelMemoryLight,
     FormattingModelKind.balanced => l10n.formattingModelMemoryBalanced,
+    FormattingModelKind.quality => l10n.formattingModelMemoryQuality,
   };
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
     return Observer(
       builder: (_) {
         final installed = store.ready(model.id);
         final active = store.activeReady && store.activeId == model.id;
         final state =
             store.states[model.id] ?? FormattingDownloadState.available;
-        final activating = store.activatingId == model.id;
-        final canActivate = installed && !active && !store.busy;
-        return Padding(
+        return ModelCatalogTile(
           key: ValueKey('formatting-model-row-${model.id}'),
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Container(
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: active ? colors.primary : colors.outlineVariant,
-                width: active ? 2 : 1,
-              ),
-            ),
-            child: Material(
-              type: MaterialType.transparency,
-              borderRadius: BorderRadius.circular(11),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: canActivate ? () => store.activate(model.id) : null,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                    AppSpacing.md,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              alignment: Alignment.topCenter,
-                              child:
-                                  active ||
-                                      model.id == store.recommendation.model.id
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: AppSpacing.xs,
-                                      ),
-                                      child: Wrap(
-                                        spacing: AppSpacing.md,
-                                        runSpacing: AppSpacing.xs,
-                                        children: [
-                                          if (model.id ==
-                                              store.recommendation.model.id)
-                                            Text(
-                                              l10n.formattingModelRecommended,
-                                              style: text.labelMedium?.copyWith(
-                                                color: colors.primary,
-                                              ),
-                                            ),
-                                          if (active)
-                                            TweenAnimationBuilder<double>(
-                                              tween: Tween(
-                                                begin: 0,
-                                                end: 1,
-                                              ),
-                                              duration: const Duration(
-                                                milliseconds: 160,
-                                              ),
-                                              curve: Curves.easeOutCubic,
-                                              builder:
-                                                  (context, value, child) =>
-                                                      Opacity(
-                                                        opacity: value,
-                                                        child: child,
-                                                      ),
-                                              child: Text(
-                                                l10n.formattingModelActive,
-                                                style: text.labelMedium
-                                                    ?.copyWith(
-                                                      color: colors.primary,
-                                                    ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                            Text(model.name, style: text.titleMedium),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${localModelSize(context, model.bytes)} · ${model.quantization}',
-                              style: text.bodySmall,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _capability(l10n),
-                                    style: text.titleSmall,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: l10n.formattingModelInfo,
-                                  onPressed: () => _showDetails(context, l10n),
-                                  icon: const Icon(
-                                    Icons.info_outline,
-                                    size: 20,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(_memory(l10n), style: text.bodyMedium),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              _status(l10n, state),
-                              style: text.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      _action(
-                        context,
-                        l10n,
-                        state,
-                        installed,
-                        active,
-                        activating,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          name: model.name,
+          metadata:
+              '${localModelSize(context, model.bytes)} · ${model.quantization}',
+          active: active,
+          activeLabel: l10n.formattingModelActive,
+          recommendedLabel: model.id == store.recommendation.model.id
+              ? l10n.formattingModelRecommended
+              : null,
+          onTap: installed && !active && !store.busy
+              ? () => store.activate(model.id)
+              : null,
+          detailsTitle: _capability(l10n),
+          description: _memory(l10n),
+          status: _status(l10n, state),
+          detailsTooltip: l10n.formattingModelInfo,
+          onDetails: () => _showDetails(context, l10n),
+          trailing: _action(
+            context,
+            l10n,
+            state,
+            installed,
+            active,
+            store.activatingId == model.id,
           ),
         );
       },
     );
   }
 
-  String _status(AppLocalizations l10n, FormattingDownloadState state) {
-    return switch (state) {
-      FormattingDownloadState.ready => l10n.formattingModelInstalled,
-      FormattingDownloadState.queued => l10n.formattingModelQueued,
-      FormattingDownloadState.downloading => l10n.onboardingModelProgress(
-        (((store.received[model.id] ?? 0) / model.bytes) * 100).floor(),
-      ),
-      FormattingDownloadState.verifying => l10n.onboardingModelVerifying,
-      FormattingDownloadState.checking => l10n.onboardingModelVerifying,
-      FormattingDownloadState.failed => l10n.formattingModelFailed,
-      FormattingDownloadState.cancelled => l10n.formattingModelCancelled,
-      FormattingDownloadState.available =>
-        (store.partial[model.id] ?? 0) > 0
-            ? l10n.formattingModelResume
-            : l10n.formattingModelAvailable,
-    };
-  }
+  String _status(AppLocalizations l10n, FormattingDownloadState state) =>
+      switch (state) {
+        FormattingDownloadState.ready => l10n.formattingModelInstalled,
+        FormattingDownloadState.queued => l10n.formattingModelQueued,
+        FormattingDownloadState.downloading => l10n.onboardingModelProgress(
+          (((store.received[model.id] ?? 0) / model.bytes) * 100).floor(),
+        ),
+        FormattingDownloadState.verifying ||
+        FormattingDownloadState.checking => l10n.onboardingModelVerifying,
+        FormattingDownloadState.failed => l10n.formattingModelFailed,
+        FormattingDownloadState.cancelled => l10n.formattingModelCancelled,
+        FormattingDownloadState.available =>
+          (store.partial[model.id] ?? 0) > 0
+              ? l10n.formattingModelResume
+              : l10n.formattingModelAvailable,
+      };
 
   Widget _action(
     BuildContext context,
@@ -288,71 +173,77 @@ class _FormattingModelRow extends StatelessWidget {
     bool activating,
   ) {
     if (state == FormattingDownloadState.checking) {
-      return const SizedBox.square(
-        dimension: 24,
-        child: CircularProgressIndicator(),
+      return ModelCatalogActionButton(
+        action: ModelCatalogAction.checking,
+        tooltip: l10n.onboardingModelVerifying,
       );
     }
     if (activating) {
-      return _pendingAction(
-        context,
-        key: ValueKey('formatting-activating-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('formatting-activating-${model.id}'),
+        action: ModelCatalogAction.pending,
         tooltip: l10n.formattingModelActivating,
-        onPressed: null,
       );
     }
     if (state == FormattingDownloadState.queued ||
         state == FormattingDownloadState.downloading ||
         state == FormattingDownloadState.verifying) {
-      return _pendingAction(
-        context,
-        key: ValueKey('formatting-cancel-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('formatting-cancel-${model.id}'),
+        action: ModelCatalogAction.pending,
         tooltip: l10n.cancel,
         onPressed: store.busy ? null : () => store.cancelDownload(model.id),
       );
     }
     if (installed) {
-      return IconButton(
-        key: ValueKey('formatting-delete-${model.id}'),
+      return ModelCatalogActionButton(
+        buttonKey: ValueKey('formatting-delete-${model.id}'),
+        action: ModelCatalogAction.delete,
         tooltip: active ? l10n.formattingModelActiveDeleteHint : l10n.delete,
         onPressed: active || store.busy
             ? null
             : () => _confirmDelete(context, l10n),
-        icon: const Icon(Icons.delete_outline),
       );
     }
-    final partial = (store.partial[model.id] ?? 0) > 0;
-    return IconButton(
-      key: ValueKey('formatting-download-${model.id}'),
+    return ModelCatalogActionButton(
+      buttonKey: ValueKey('formatting-download-${model.id}'),
+      action: ModelCatalogAction.download,
       tooltip: state == FormattingDownloadState.failed
           ? l10n.formattingModelRetry
-          : partial
+          : (store.partial[model.id] ?? 0) > 0
           ? l10n.formattingModelResumeDownload
           : l10n.formattingModelDownload,
-      onPressed: store.busy ? null : () => store.downloadOne(model.id),
-      icon: const Icon(Icons.download_outlined),
+      onPressed: store.busy ? null : () => _download(context, l10n),
     );
   }
 
-  Widget _pendingAction(
-    BuildContext context, {
-    Key? key,
-    required String tooltip,
-    required VoidCallback? onPressed,
-  }) {
-    return IconButton(
-      key: key,
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: Theme.of(context).colorScheme.primary,
+  Future<void> _download(BuildContext context, AppLocalizations l10n) async {
+    if (model.requiresGemmaTerms) {
+      final terms = await rootBundle.loadString(
+        'assets/licenses/gemma-NOTICE.txt',
+      );
+      if (!context.mounted) return;
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          scrollable: true,
+          title: Text(l10n.formattingModelTermsTitle),
+          content: Text('${l10n.formattingModelTermsMessage}\n\n$terms'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: Text(l10n.formattingModelAcceptTerms),
+            ),
+          ],
         ),
-      ),
-    );
+      );
+      if (accepted != true || !context.mounted) return;
+    }
+    await store.downloadOne(model.id);
   }
 
   Future<void> _confirmDelete(
@@ -390,17 +281,11 @@ class _FormattingModelRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                l10n.formattingModelCapabilities,
-                style: text.titleSmall,
-              ),
+              Text(l10n.formattingModelCapabilities, style: text.titleSmall),
               const SizedBox(height: AppSpacing.xs),
               Text(_capability(l10n)),
               const SizedBox(height: AppSpacing.md),
-              Text(
-                l10n.formattingModelLanguages,
-                style: text.titleSmall,
-              ),
+              Text(l10n.formattingModelLanguages, style: text.titleSmall),
               const SizedBox(height: AppSpacing.xs),
               Text(l10n.formattingModelAllLanguages),
               const SizedBox(height: AppSpacing.md),
@@ -409,7 +294,7 @@ class _FormattingModelRow extends StatelessWidget {
               Text(l10n.formattingModelNoteLimit),
               const SizedBox(height: AppSpacing.md),
               Text(
-                '${l10n.formattingModelLicense}: Apache-2.0 · ${localModelSize(context, model.bytes)} · ${model.quantization}',
+                '${l10n.formattingModelLicense}: ${model.license} · ${localModelSize(context, model.bytes)} · ${model.quantization}',
               ),
             ],
           ),

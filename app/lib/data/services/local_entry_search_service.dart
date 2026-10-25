@@ -1,13 +1,19 @@
 import 'package:injectable/injectable.dart';
+import 'dart:isolate';
 import 'package:smartnotes/data/datasources/local/local_database.dart';
 import 'package:smartnotes/domain/entities/search_result.dart';
+import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/search_options.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
-import 'package:smartnotes/domain/entities/embedding_pipeline.dart';
 import 'package:smartnotes/domain/entities/inference_cancelled.dart';
 import 'package:smartnotes/domain/entities/search_index_status.dart';
 import 'package:smartnotes/domain/services/i_embedding_service.dart';
 import 'package:smartnotes/domain/services/i_entry_search_service.dart';
+
+// A top-level boundary avoids capturing the service's async frame (and its
+// stream controllers, database ports and cancellation callbacks) in Isolate.run.
+Future<String> _entrySourceOffThread(JournalEntry entry) =>
+    Isolate.run(() => entrySource(entry));
 
 @LazySingleton(as: IEntrySearchService)
 class LocalEntrySearchService implements IEntrySearchService {
@@ -50,7 +56,7 @@ class LocalEntrySearchService implements IEntrySearchService {
       }
       final generation = await _database.indexGeneration();
       checkInferenceCancelled(cancelled);
-      final key = '${EmbeddingPipeline.id}:$generation:$query';
+      final key = '${_database.embeddingProfile.pipelineId}:$generation:$query';
       final vector =
           _queries[key] ??
           await _embeddings.embedQuery(query, isCancelled: cancelled);
@@ -61,7 +67,11 @@ class LocalEntrySearchService implements IEntrySearchService {
       }
       if (_queries.length >= 20) _queries.remove(_queries.keys.first);
       _queries[key] = vector;
-      final results = await _database.searchVector(vector, options: options);
+      final results = await _database.searchVector(
+        vector,
+        options: options,
+        generation: generation,
+      );
       return cancelled() ? [] : results;
     } on InferenceCancelled {
       return [];
@@ -101,40 +111,48 @@ class LocalEntrySearchService implements IEntrySearchService {
     }
 
     final generation = await _database.indexGeneration();
-    final pending = await _database.pendingEntries(
-      retryFailures: retryFailures,
-    );
-    for (final entry in pending) {
-      if (cancelled()) {
-        return;
-      }
-      try {
-        final source = entrySource(entry);
-        final passages = <({String text, int start})>[];
-        final vectors = await _embeddings.embedDocument(
-          source,
-          isCancelled: cancelled,
-          onPassage: (text, start) => passages.add((text: text, start: start)),
-        );
+    if (retryFailures) {
+      await _database.retryIndexFailures(generation: generation);
+    }
+    // Fetch bounded snapshots, not the full journal on Flutter's UI isolate.
+    while (!cancelled()) {
+      final pending = await _database.pendingEntries(
+        limit: 25,
+      );
+      if (pending.isEmpty) return;
+      for (final entry in pending) {
         if (cancelled()) {
           return;
         }
-        await _database.indexEntry(
-          entry,
-          vectors,
-          generation: generation,
-          passages: passages,
-        );
-      } catch (error) {
-        if (cancelled()) {
-          return;
+        try {
+          final source = await _entrySourceOffThread(entry);
+          final passages = <({String text, int start})>[];
+          final vectors = await _embeddings.embedDocument(
+            source,
+            isCancelled: cancelled,
+            onPassage: (text, start) =>
+                passages.add((text: text, start: start)),
+          );
+          if (cancelled()) {
+            return;
+          }
+          await _database.indexEntry(
+            entry,
+            vectors,
+            generation: generation,
+            passages: passages,
+          );
+        } catch (error) {
+          if (cancelled()) {
+            return;
+          }
+          // Existing journals remain pending while setup/repair is incomplete.
+          if (error is AiFailure && error.code == AiFailureCode.modelMissing) {
+            return;
+          }
+          await _database.markIndexFailed(entry, generation: generation);
+          // One damaged note must not prevent indexing the rest of the journal.
         }
-        // Existing journals remain pending while setup/repair is incomplete.
-        if (error is AiFailure && error.code == AiFailureCode.modelMissing) {
-          return;
-        }
-        await _database.markIndexFailed(entry, generation: generation);
-        // One damaged note must not prevent indexing the rest of the journal.
       }
     }
   }

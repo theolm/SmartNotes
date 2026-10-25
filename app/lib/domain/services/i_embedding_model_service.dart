@@ -5,8 +5,10 @@ abstract class IEmbeddingModelService
     extends ILocalModelInstallation<LocalAiModel> {
   LocalAiModel get model;
 
-  /// Verified readiness changes after installation/repair. Consumers should
-  /// subscribe before calling [isReady] for the initial state.
+  /// Verified readiness after installation/repair or active-identity change.
+  /// A ready-to-ready switch emits true again: consumers must not deduplicate
+  /// this stream by boolean value. Read [model] for the committed identity.
+  /// Subscribe before calling [isReady] for the initial state.
   Stream<bool> get readinessChanges;
   Future<String> requireModelPath();
 }

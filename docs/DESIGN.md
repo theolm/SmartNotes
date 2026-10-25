@@ -53,11 +53,28 @@ component-specific styling.
   Your journal sections. App lock is a direct switch; destination rows show
   short summaries. Transcription groups audio language with its model catalog
   and expandable recovery actions. AI organization retains its optional catalog.
+  Search model is a separate destination alongside Transcription and AI
+  organization. Its Settings subtitle names the persisted active model and its
+  readiness; never show an assumed default before selection is resolved. Its
+  dedicated catalog page uses the same bounded layout as the other model pages,
+   shared ModelSettingsPage chrome and ModelCatalogTile rows, like Transcription
+   and AI organization. Rows share badges, metadata, information, description,
+   status and trailing ModelCatalogActionButton controls, with 16dp between rows.
+   Tap an installed row to select; search-model switches require rebuild
+   confirmation. Explicit verification lives in its information dialog.
+   Downloading never changes selection. Unavailable candidates stay in
+  an initially collapsed section. The catalog is also reused during onboarding.
+  Search by meaning contains explanations, index progress and maintenance only,
+  with a Manage search model repair link when needed, not a model selector.
   Search by meaning and Backup and restore have dedicated pages; index repair
   lives under Advanced, and pending indexing actions appear only when needed.
   Labels and summaries wrap at compact widths and larger text scales.
-- Model setup names each download and its size, with progress, cancel,
-  retry, and verification. Required speech and embedding models and the optional
+- Model setup names each download and its size, with progress, cancellation,
+  retry and verification. Optional larger 4B organization models have explicit
+  memory/speed guidance
+  and a scrollable Gemma terms confirmation before its download. All options
+  retain the same shared catalog rows; smaller models remain recommended.
+  Required speech and embedding models and the optional
   formatting-model step share the same compact row treatment; the formatting
   step can be skipped and remains available in Settings. Search settings expose
   pending/failed indexing and repair; partial semantic results carry an explicit

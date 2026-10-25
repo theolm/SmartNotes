@@ -15,13 +15,10 @@ abstract final class EmbeddingPipeline {
 
   /// Retrieval policy, not representation: a closer best chunk still matches.
   ///
-  /// Calibrated with `integration_test/search_relevance_test.dart` on synthetic
-  /// bilingual notes, using the real weights. Relevant matches landed between
-  /// 0.27 and 0.60 cosine distance; ten clearly unrelated topics all started at
-  /// 0.626. The cutoff sits inside that gap, favouring recall: a vague query
-  /// keeps a weak-but-real entry rather than reporting nothing. Recalibrate
-  /// with new evidence, and never tighten it without re-running the holdout.
-  static const maxDistance = 0.61;
+  /// Recalibrated on CPU with pinned Q8 weights, training split only:
+  /// max relevant 0.60309, min absent-topic 0.62776; rounded midpoint 0.6154.
+  /// Evidence and holdout results: docs/embedding-calibration.md.
+  static const maxDistance = 0.6154;
   static LocalAiModel get model => LocalAiModel.qwenEmbedding;
   static String query(String text) =>
       'Instruct: $queryInstruction\nQuery:$text';

@@ -285,6 +285,10 @@ const _queries = <({String text, String? relevant, bool precise, bool holdout})>
   ),
 ];
 
+// Shared, predetermined synthetic corpus. Calibration must not tune on holdout.
+const relevanceNotes = _notes;
+const relevanceQueries = _queries;
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const modelPath = String.fromEnvironment('EMBEDDING_MODEL_PATH');

@@ -10,35 +10,37 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 
-import 'package:auto_route/auto_route.dart' as _i10;
-import 'package:flutter/material.dart' as _i11;
+import 'package:auto_route/auto_route.dart' as _i11;
+import 'package:flutter/material.dart' as _i12;
 import 'package:smartnotes/presentation/screens/entry_detail/entry_detail_screen.dart'
-    as _i2;
-import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_screen.dart'
     as _i3;
+import 'package:smartnotes/presentation/screens/entry_edit/entry_edit_screen.dart'
+    as _i4;
 import 'package:smartnotes/presentation/screens/home/journal_workspace_screen.dart'
-    as _i5;
-import 'package:smartnotes/presentation/screens/lock/lock_screen.dart' as _i6;
+    as _i6;
+import 'package:smartnotes/presentation/screens/lock/lock_screen.dart' as _i7;
 import 'package:smartnotes/presentation/screens/onboarding/onboarding_screen.dart'
-    as _i7;
+    as _i8;
 import 'package:smartnotes/presentation/screens/settings/data_settings_screens.dart'
     as _i1;
+import 'package:smartnotes/presentation/screens/settings/embedding_models_screen.dart'
+    as _i2;
 import 'package:smartnotes/presentation/screens/settings/formatting_models_screen.dart'
-    as _i4;
+    as _i5;
 import 'package:smartnotes/presentation/screens/settings/settings_screen.dart'
-    as _i8;
-import 'package:smartnotes/presentation/screens/settings/speech_models_screen.dart'
     as _i9;
+import 'package:smartnotes/presentation/screens/settings/speech_models_screen.dart'
+    as _i10;
 
 /// generated route for
 /// [_i1.BackupSettingsScreen]
-class BackupSettingsRoute extends _i10.PageRouteInfo<void> {
-  const BackupSettingsRoute({List<_i10.PageRouteInfo>? children})
+class BackupSettingsRoute extends _i11.PageRouteInfo<void> {
+  const BackupSettingsRoute({List<_i11.PageRouteInfo>? children})
     : super(BackupSettingsRoute.name, initialChildren: children);
 
   static const String name = 'BackupSettingsRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       return const _i1.BackupSettingsScreen();
@@ -47,12 +49,28 @@ class BackupSettingsRoute extends _i10.PageRouteInfo<void> {
 }
 
 /// generated route for
-/// [_i2.EntryDetailScreen]
-class EntryDetailRoute extends _i10.PageRouteInfo<EntryDetailRouteArgs> {
+/// [_i2.EmbeddingModelsScreen]
+class EmbeddingModelsRoute extends _i11.PageRouteInfo<void> {
+  const EmbeddingModelsRoute({List<_i11.PageRouteInfo>? children})
+    : super(EmbeddingModelsRoute.name, initialChildren: children);
+
+  static const String name = 'EmbeddingModelsRoute';
+
+  static _i11.PageInfo page = _i11.PageInfo(
+    name,
+    builder: (data) {
+      return const _i2.EmbeddingModelsScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [_i3.EntryDetailScreen]
+class EntryDetailRoute extends _i11.PageRouteInfo<EntryDetailRouteArgs> {
   EntryDetailRoute({
-    _i11.Key? key,
+    _i12.Key? key,
     required String entryId,
-    List<_i10.PageRouteInfo>? children,
+    List<_i11.PageRouteInfo>? children,
   }) : super(
          EntryDetailRoute.name,
          args: EntryDetailRouteArgs(key: key, entryId: entryId),
@@ -61,11 +79,11 @@ class EntryDetailRoute extends _i10.PageRouteInfo<EntryDetailRouteArgs> {
 
   static const String name = 'EntryDetailRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<EntryDetailRouteArgs>();
-      return _i2.EntryDetailScreen(key: args.key, entryId: args.entryId);
+      return _i3.EntryDetailScreen(key: args.key, entryId: args.entryId);
     },
   );
 }
@@ -73,7 +91,7 @@ class EntryDetailRoute extends _i10.PageRouteInfo<EntryDetailRouteArgs> {
 class EntryDetailRouteArgs {
   const EntryDetailRouteArgs({this.key, required this.entryId});
 
-  final _i11.Key? key;
+  final _i12.Key? key;
 
   final String entryId;
 
@@ -94,14 +112,14 @@ class EntryDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i3.EntryEditScreen]
-class EntryEditRoute extends _i10.PageRouteInfo<EntryEditRouteArgs> {
+/// [_i4.EntryEditScreen]
+class EntryEditRoute extends _i11.PageRouteInfo<EntryEditRouteArgs> {
   EntryEditRoute({
-    _i11.Key? key,
+    _i12.Key? key,
     String? entryId,
     String initialTitle = '',
     String initialSubtitle = '',
-    List<_i10.PageRouteInfo>? children,
+    List<_i11.PageRouteInfo>? children,
   }) : super(
          EntryEditRoute.name,
          args: EntryEditRouteArgs(
@@ -115,13 +133,13 @@ class EntryEditRoute extends _i10.PageRouteInfo<EntryEditRouteArgs> {
 
   static const String name = 'EntryEditRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<EntryEditRouteArgs>(
         orElse: () => const EntryEditRouteArgs(),
       );
-      return _i3.EntryEditScreen(
+      return _i4.EntryEditScreen(
         key: args.key,
         entryId: args.entryId,
         initialTitle: args.initialTitle,
@@ -139,7 +157,7 @@ class EntryEditRouteArgs {
     this.initialSubtitle = '',
   });
 
-  final _i11.Key? key;
+  final _i12.Key? key;
 
   final String? entryId;
 
@@ -171,76 +189,76 @@ class EntryEditRouteArgs {
 }
 
 /// generated route for
-/// [_i4.FormattingModelsScreen]
-class FormattingModelsRoute extends _i10.PageRouteInfo<void> {
-  const FormattingModelsRoute({List<_i10.PageRouteInfo>? children})
+/// [_i5.FormattingModelsScreen]
+class FormattingModelsRoute extends _i11.PageRouteInfo<void> {
+  const FormattingModelsRoute({List<_i11.PageRouteInfo>? children})
     : super(FormattingModelsRoute.name, initialChildren: children);
 
   static const String name = 'FormattingModelsRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
-      return const _i4.FormattingModelsScreen();
+      return const _i5.FormattingModelsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i5.JournalEmptyScreen]
-class JournalEmptyRoute extends _i10.PageRouteInfo<void> {
-  const JournalEmptyRoute({List<_i10.PageRouteInfo>? children})
+/// [_i6.JournalEmptyScreen]
+class JournalEmptyRoute extends _i11.PageRouteInfo<void> {
+  const JournalEmptyRoute({List<_i11.PageRouteInfo>? children})
     : super(JournalEmptyRoute.name, initialChildren: children);
 
   static const String name = 'JournalEmptyRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
-      return const _i5.JournalEmptyScreen();
+      return const _i6.JournalEmptyScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i5.JournalWorkspaceScreen]
-class HomeRoute extends _i10.PageRouteInfo<void> {
-  const HomeRoute({List<_i10.PageRouteInfo>? children})
+/// [_i6.JournalWorkspaceScreen]
+class HomeRoute extends _i11.PageRouteInfo<void> {
+  const HomeRoute({List<_i11.PageRouteInfo>? children})
     : super(HomeRoute.name, initialChildren: children);
 
   static const String name = 'HomeRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
-      return const _i5.JournalWorkspaceScreen();
+      return const _i6.JournalWorkspaceScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i6.LockScreen]
-class LockRoute extends _i10.PageRouteInfo<void> {
-  const LockRoute({List<_i10.PageRouteInfo>? children})
+/// [_i7.LockScreen]
+class LockRoute extends _i11.PageRouteInfo<void> {
+  const LockRoute({List<_i11.PageRouteInfo>? children})
     : super(LockRoute.name, initialChildren: children);
 
   static const String name = 'LockRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
-      return const _i6.LockScreen();
+      return const _i7.LockScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i7.OnboardingScreen]
-class OnboardingRoute extends _i10.PageRouteInfo<OnboardingRouteArgs> {
+/// [_i8.OnboardingScreen]
+class OnboardingRoute extends _i11.PageRouteInfo<OnboardingRouteArgs> {
   OnboardingRoute({
-    _i11.Key? key,
+    _i12.Key? key,
     bool fromSettings = false,
-    List<_i10.PageRouteInfo>? children,
+    List<_i11.PageRouteInfo>? children,
   }) : super(
          OnboardingRoute.name,
          args: OnboardingRouteArgs(key: key, fromSettings: fromSettings),
@@ -249,13 +267,13 @@ class OnboardingRoute extends _i10.PageRouteInfo<OnboardingRouteArgs> {
 
   static const String name = 'OnboardingRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OnboardingRouteArgs>(
         orElse: () => const OnboardingRouteArgs(),
       );
-      return _i7.OnboardingScreen(
+      return _i8.OnboardingScreen(
         key: args.key,
         fromSettings: args.fromSettings,
       );
@@ -266,7 +284,7 @@ class OnboardingRoute extends _i10.PageRouteInfo<OnboardingRouteArgs> {
 class OnboardingRouteArgs {
   const OnboardingRouteArgs({this.key, this.fromSettings = false});
 
-  final _i11.Key? key;
+  final _i12.Key? key;
 
   final bool fromSettings;
 
@@ -288,13 +306,13 @@ class OnboardingRouteArgs {
 
 /// generated route for
 /// [_i1.SearchSettingsScreen]
-class SearchSettingsRoute extends _i10.PageRouteInfo<void> {
-  const SearchSettingsRoute({List<_i10.PageRouteInfo>? children})
+class SearchSettingsRoute extends _i11.PageRouteInfo<void> {
+  const SearchSettingsRoute({List<_i11.PageRouteInfo>? children})
     : super(SearchSettingsRoute.name, initialChildren: children);
 
   static const String name = 'SearchSettingsRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       return const _i1.SearchSettingsScreen();
@@ -303,29 +321,29 @@ class SearchSettingsRoute extends _i10.PageRouteInfo<void> {
 }
 
 /// generated route for
-/// [_i8.SettingsScreen]
-class SettingsRoute extends _i10.PageRouteInfo<void> {
-  const SettingsRoute({List<_i10.PageRouteInfo>? children})
+/// [_i9.SettingsScreen]
+class SettingsRoute extends _i11.PageRouteInfo<void> {
+  const SettingsRoute({List<_i11.PageRouteInfo>? children})
     : super(SettingsRoute.name, initialChildren: children);
 
   static const String name = 'SettingsRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
-      return const _i8.SettingsScreen();
+      return const _i9.SettingsScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i9.SpeechModelsScreen]
-class SpeechModelsRoute extends _i10.PageRouteInfo<SpeechModelsRouteArgs> {
+/// [_i10.SpeechModelsScreen]
+class SpeechModelsRoute extends _i11.PageRouteInfo<SpeechModelsRouteArgs> {
   SpeechModelsRoute({
-    _i11.Key? key,
+    _i12.Key? key,
     bool changeLanguage = false,
     String? requestedLanguage,
-    List<_i10.PageRouteInfo>? children,
+    List<_i11.PageRouteInfo>? children,
   }) : super(
          SpeechModelsRoute.name,
          args: SpeechModelsRouteArgs(
@@ -338,13 +356,13 @@ class SpeechModelsRoute extends _i10.PageRouteInfo<SpeechModelsRouteArgs> {
 
   static const String name = 'SpeechModelsRoute';
 
-  static _i10.PageInfo page = _i10.PageInfo(
+  static _i11.PageInfo page = _i11.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<SpeechModelsRouteArgs>(
         orElse: () => const SpeechModelsRouteArgs(),
       );
-      return _i9.SpeechModelsScreen(
+      return _i10.SpeechModelsScreen(
         key: args.key,
         changeLanguage: args.changeLanguage,
         requestedLanguage: args.requestedLanguage,
@@ -360,7 +378,7 @@ class SpeechModelsRouteArgs {
     this.requestedLanguage,
   });
 
-  final _i11.Key? key;
+  final _i12.Key? key;
 
   final bool changeLanguage;
 

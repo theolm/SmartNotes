@@ -505,7 +505,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Retry'), findsOneWidget);
       expect(find.text('Keep word results'), findsOneWidget);
-      expect(find.text('Check model setup'), findsOneWidget);
+      expect(find.text('Manage search model'), findsOneWidget);
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
