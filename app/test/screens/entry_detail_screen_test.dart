@@ -148,6 +148,85 @@ void main() {
     },
   );
 
+  testWidgets('wand sheets cover the workspace FAB above a nested navigator', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final rootNavigator = GlobalKey<NavigatorState>();
+    final entryNavigator = GlobalKey<NavigatorState>();
+    const captureKey = ValueKey('workspace-capture');
+    var captureCount = 0;
+    final now = DateTime(2026);
+    final entry = JournalEntry(
+      id: '1',
+      createdAt: now,
+      updatedAt: now,
+      status: EntryStatus.completed,
+      transcription: 'Original words',
+    );
+    when(() => mockService.getById('1')).thenAnswer((_) async => entry);
+    when(
+      () => mockUseCase.applyAiAction(entry, AiAction.organizedNote),
+    ).thenAnswer((_) async => entry.copyWith(formattedNote: 'Draft words'));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: rootNavigator,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Navigator(
+            key: entryNavigator,
+            onGenerateRoute: (_) => MaterialPageRoute<void>(
+              builder: (_) => const EntryDetailScreen(entryId: '1'),
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            key: captureKey,
+            onPressed: () => captureCount++,
+            child: const Icon(Icons.mic),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final capturePosition = tester.getCenter(find.byKey(captureKey));
+    await tester.tap(find.byIcon(Icons.auto_fix_high));
+    await tester.pumpAndSettle();
+
+    expect(
+      Navigator.of(tester.element(find.byType(BottomSheet))),
+      same(rootNavigator.currentState),
+    );
+    await tester.tapAt(capturePosition);
+    await tester.pumpAndSettle();
+    expect(captureCount, 0);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.byIcon(Icons.auto_fix_high));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Organize'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draft words'), findsOneWidget);
+    expect(
+      Navigator.of(tester.element(find.byType(BottomSheet))),
+      same(rootNavigator.currentState),
+    );
+    await tester.tapAt(capturePosition);
+    await tester.pumpAndSettle();
+    expect(captureCount, 0);
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.byKey(captureKey));
+    expect(captureCount, 1);
+    expect(store.entry, entry);
+    expect(store.aiDraft, isNull);
+  });
+
   testWidgets('discarding a preview keeps the saved content unchanged', (
     tester,
   ) async {
