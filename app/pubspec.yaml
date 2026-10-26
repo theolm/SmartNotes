@@ -1,7 +1,7 @@
 name: smartnotes
 description: "An offline voice journal with local transcription and note formatting."
 publish_to: 'none'
-version: 0.2.0+4
+version: 0.2.1+4
 
 environment:
   sdk: ^3.12.1
