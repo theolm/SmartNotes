@@ -44,6 +44,9 @@ dependencies:
   llamadart_llama_cpp_flutter: 0.0.21
   just_audio: ^0.10.6
   audio_session: ^0.2.4
+  package_info_plus: ^10.2.2
+  pub_semver: ^2.2.1
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

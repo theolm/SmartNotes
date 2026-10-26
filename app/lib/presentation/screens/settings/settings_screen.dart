@@ -13,6 +13,10 @@ import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
 import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
 import 'package:smartnotes/presentation/widgets/embedding_model_status.dart';
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
+import 'package:smartnotes/presentation/widgets/app_update_widgets.dart';
+import 'package:smartnotes/presentation/stores/app_update_store.dart';
+import 'package:smartnotes/presentation/screens/home/home_store.dart';
+import 'package:smartnotes/presentation/app_store.dart';
 
 @RoutePage()
 class SettingsScreen extends StatefulWidget {
@@ -144,6 +148,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     l10n.backupSettingsTitle,
                     l10n.backupSettingsSummary,
                     () => _open(const BackupSettingsRoute()),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  AppUpdateSettings(
+                    store: getIt<AppUpdateStore>(),
+                    canInstall: () {
+                      final home = getIt<HomeStore>();
+                      return getIt<AppStore>().isUnlocked &&
+                          !updateWorkIsActive(home) &&
+                          context.router.root
+                                  .innerRouterOf<StackRouter>(HomeRoute.name)
+                                  ?.current
+                                  .name !=
+                              EntryEditRoute.name;
+                    },
+                  ),
+                  Observer(
+                    builder: (_) {
+                      final version = getIt<AppUpdateStore>().installed;
+                      if (version.isEmpty) return const SizedBox.shrink();
+                      final theme = Theme.of(context);
+                      return Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xl),
+                        child: Text(
+                          l10n.settingsAppVersion(version),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

@@ -9,6 +9,93 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String settingsAppVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get updateTitle => 'App updates';
+
+  @override
+  String get updateAvailable => 'Update available';
+
+  @override
+  String updateVersions(String installed, String available) {
+    return 'Installed: $installed\nAvailable: $available';
+  }
+
+  @override
+  String updateDownload(String size) {
+    return 'Download update ($size MB)';
+  }
+
+  @override
+  String get updateRelease => 'View release';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updateIgnore => 'Ignore this version';
+
+  @override
+  String get updateCheck => 'Check for updates';
+
+  @override
+  String get updateCurrent => 'You are up to date.';
+
+  @override
+  String get updateChecking => 'Checking for updates…';
+
+  @override
+  String get updateCheckFailed =>
+      'Could not check for updates. Check your connection and try again later.';
+
+  @override
+  String get updateActionFailed =>
+      'Could not download or open this update. Try again later.';
+
+  @override
+  String get updateInstallFailed =>
+      'Installation could not start. Allow installation from SmartNotes in Android settings, then tap Install again. If the APK is no longer valid, download it again.';
+
+  @override
+  String get updateInstall => 'Install';
+
+  @override
+  String get updateInstallBusy =>
+      'Finish recording, processing, or editing before installing the update.';
+
+  @override
+  String get updateCancel => 'Cancel download';
+
+  @override
+  String get updateDownloading => 'Downloading app update…';
+
+  @override
+  String get updateVerifying => 'Verifying app update…';
+
+  @override
+  String get updateReady => 'Update ready to install';
+
+  @override
+  String get updateFailed =>
+      'Update download failed. Check your connection and available space, then try again.';
+
+  @override
+  String get updateCancelled => 'Update download cancelled.';
+
+  @override
+  String get updateChannel => 'App updates';
+
+  @override
+  String get updateNotificationTitle => 'SmartNotes update';
+
+  @override
+  String get updateInstallExplanation =>
+      'Android will ask you to confirm installation. Your journal and downloaded models are preserved.';
+
+  @override
   String get embeddingCatalogTitle => 'Available models';
 
   @override

@@ -12,6 +12,9 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/application/journal_lifecycle.dart';
 import 'package:smartnotes/data/services/model_verification.dart';
 import 'package:smartnotes/data/services/processing_feedback_service.dart';
+import 'package:smartnotes/presentation/stores/app_update_store.dart';
+import 'package:smartnotes/presentation/screens/home/home_store.dart';
+import 'package:smartnotes/presentation/widgets/app_update_widgets.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,7 +90,13 @@ class SmartNotesApp extends StatelessWidget {
       builder: (context, child) {
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: AppSystemBars.forBrightness(Theme.of(context).brightness),
-          child: child ?? const SizedBox.shrink(),
+          child: AppUpdateHost(
+            store: getIt<AppUpdateStore>(),
+            app: getIt<AppStore>(),
+            home: getIt<HomeStore>(),
+            router: appRouter,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );

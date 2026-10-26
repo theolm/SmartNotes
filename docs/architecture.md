@@ -7,7 +7,10 @@ This document defines the architecture that all SmartNotes code must follow. It 
 - Android, iOS, and macOS are supported. Flutter web is not supported.
 - The app is local-first. Journal entries, recordings, transcriptions, settings, and search data stay on the device.
 - There is no account, backend, cloud sync, remote AI, analytics, telemetry, advertising, or API key.
-- Network access is limited to downloading pinned model files.
+- Network access is limited to downloading pinned model files, checking public
+  GitHub releases, and downloading explicitly accepted app updates. Update checks
+  send no journal content, identifiers, analytics, or credentials; GitHub receives
+  ordinary connection metadata such as the IP address.
 - The journal and original recordings are authoritative. Search indexes, chunks, and embeddings are derived and disposable.
 - AI is optional except where setup explicitly requires a model. A missing formatting model never blocks recording, transcription, reading, text search, or backups.
 - The app does not encrypt the database or recordings. App lock protects the interface only.
@@ -28,7 +31,8 @@ This document defines the architecture that all SmartNotes code must follow. It 
 | Files | `file_picker`, `path_provider`, `archive`, `crypto`, `uuid` | Imports, backups, hashing, IDs |
 | Authentication | `local_auth` | Optional biometric or device-credential lock |
 | Presentation utilities | `flutter_markdown_plus`, `markdown`, `flutter_slidable`, `intl`, `diacritic`, `logger` | Markdown, lists, formatting, logging |
-| HTTP | `http` | Model downloads only |
+| HTTP | `http` | Model downloads, public GitHub releases, and update checksums |
+| App updates | `package_info_plus`, `pub_semver`, `url_launcher` | Installed version, semantic comparison, external release links |
 | Tests | `flutter_test`, `integration_test`, `mocktail`, `flutter_lints` | Unit, widget, and integration tests |
 
 Pinned native dependencies must remain pinned unless a deliberate upgrade is validated across Android, iOS, and macOS. Do not add a second state-management, dependency-injection, routing, or database package.
@@ -395,6 +399,38 @@ Embeddings:
 7. In the first post-frame callback, allow deferred model verification, start processing feedback, check model readiness, and start `JournalLifecycle`.
 
 Model checks and journal recovery must never delay route protection or the first frame. Route protection uses the persisted lock and onboarding flags, not model availability.
+
+### App updates
+
+- `IAppUpdateService` separates release/version/platform operations from presentation.
+  `GithubAppUpdateService` queries the public `theolm/SmartNotes/releases/latest`
+  endpoint without credentials, with a timeout and persisted rate-limit backoff.
+- `AppUpdateStore` owns shared MobX state, one startup check per process, manual
+  checks, and platform download reconciliation. Resume does not query releases.
+  Automatic failures are silent; manual failures have localized feedback.
+- Compare semantic versions without build metadata. Only a strictly newer stable
+  release is offered. Manual checks bypass ignored/deferred prompts but never
+  server backoff. Later defers that version for three days; Ignore suppresses it.
+- `AppUpdateHost` offers updates only when resumed, unlocked, onboarded, outside
+  editing/recording/processing, and without a root popup. It never delays startup.
+- Android uses a separate WorkManager worker, state journal, notification channel,
+  and app-private file directory; it does not reuse model download identities or
+  select models. Downloads require an explicit size-labelled confirmation and may
+  use any connected network. Partial downloads use HTTP Range when supported.
+- Before publishing a ready APK and again before installation, check its length,
+  SHA-256 from the same release's `SHA256SUMS.txt`, package identifier, version,
+  increasing versionCode, and exact installed signer set. The Android installer
+  independently verifies the APK signature. Missing metadata/assets fall back to
+  the release page. Checksums are integrity checks, not an independent trust root.
+- Installation always requires a user action and Android confirmation. Unknown
+  sources authorization is requested only at installation time; returning from
+  settings requires another Install tap. A non-exported FileProvider grants read
+  access only to the private update folder. Updates are excluded from backups
+  by the application's existing disabled platform-backup policy.
+- Notifications open the update settings after safe navigation becomes possible.
+  Update files are deleted after successful installation or replacement. OS
+  scheduling and force-stop restrictions apply; background work is not guaranteed.
+- Other platforms only open the release page. This is not iOS app distribution.
 
 ## 12. Presentation
 

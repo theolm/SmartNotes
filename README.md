@@ -20,7 +20,7 @@ The app is early-stage (`0.1.x`). The interface is currently English; the langua
 
 - Notes, recordings, transcriptions, and search data stay on the device.
 - There is no account, analytics, telemetry, advertising, cloud AI, or API key.
-- The internet is used only to download model files. After setup, transcription, formatting, search, and reading work offline.
+- Internet access downloads model files, checks public GitHub releases at app startup, and downloads app updates only after confirmation. No journal content is transmitted. Transcription, formatting, search, and reading work offline.
 - The journal database and recordings are not encrypted by the app. App lock protects the interface, not the files.
 - Exported backups are readable ZIP archives. Store them safely.
 - Uninstalling the app or clearing its data deletes the journal. Export backups regularly.

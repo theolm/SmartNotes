@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:mobx/mobx.dart' show runInAction;
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -17,11 +18,15 @@ import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
 import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
 import 'package:smartnotes/presentation/stores/model_downloads_store.dart';
+import 'package:smartnotes/presentation/stores/app_update_store.dart';
+import 'package:smartnotes/domain/services/i_app_update_service.dart';
 
 import '../helpers/nav_bar_inset.dart';
 import '../helpers/local_services.dart';
 
 class MockSettingsService extends Mock implements ISettingsService {}
+
+class MockAppUpdateService extends Mock implements IAppUpdateService {}
 
 class MockLocalAuthService extends Mock implements ILocalAuthService {}
 
@@ -57,6 +62,9 @@ void main() {
 
   setUp(() {
     mockService = MockSettingsService();
+    GetIt.I.registerSingleton<AppUpdateStore>(
+      AppUpdateStore(MockAppUpdateService()),
+    );
     mockLocalAuthService = MockLocalAuthService();
     GetIt.I.registerSingleton<ISpeechModelService>(MemorySpeechModels());
     GetIt.I.registerSingleton<IFormattingModelService>(
@@ -84,6 +92,40 @@ void main() {
 
   tearDown(() {
     GetIt.I.reset();
+  });
+
+  testWidgets('shows the installed version discreetly at the bottom', (
+    tester,
+  ) async {
+    final updates = GetIt.I<AppUpdateStore>();
+    runInAction(() => updates.installed = '1.2.3');
+    await tester.pumpWidget(const _TestableSettingsScreen());
+    await tester.pumpAndSettle();
+    final footer = find.text('Version 1.2.3');
+    await tester.scrollUntilVisible(footer, 200);
+    final text = tester.widget<Text>(footer);
+    final theme = Theme.of(tester.element(footer));
+    expect(text.textAlign, TextAlign.center);
+    expect(text.style?.fontSize, theme.textTheme.bodySmall?.fontSize);
+    expect(text.style?.color, theme.colorScheme.onSurfaceVariant);
+    expect(
+      tester.getTopLeft(footer).dy,
+      greaterThan(tester.getTopLeft(find.text('App updates')).dy),
+    );
+  });
+
+  testWidgets('version footer updates when local metadata becomes available', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _TestableSettingsScreen());
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -1500));
+    await tester.pumpAndSettle();
+    expect(find.text('Version 1.2.3'), findsNothing);
+    runInAction(() => GetIt.I<AppUpdateStore>().installed = '1.2.3');
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Version 1.2.3'), 200);
+    expect(find.text('Version 1.2.3'), findsOneWidget);
   });
 
   testWidgets(
