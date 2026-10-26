@@ -190,6 +190,8 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     // must never block the interaction.
     final action = await showModalBottomSheet<AiAction>(
       context: context,
+      // Cover the workspace capture FAB, outside the nested entry navigator.
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (_) => _AiActionsSheet(
         store: _store,
@@ -237,6 +239,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     if (succeeded) {
       final result = await showModalBottomSheet<String>(
         context: context,
+        useRootNavigator: true,
         isScrollControlled: true,
         // Flutter keeps the handle draggable even when enableDrag is false.
         // Explicit Discard/Back protects an in-flight acceptance write.
