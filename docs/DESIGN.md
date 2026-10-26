@@ -49,8 +49,12 @@ component-specific styling.
 - Input focus uses a 2dp signal-red border; idle fields keep the ink border.
 - Onboarding content is top-aligned in a 560dp reading column. Its primary
   action remains outside the scrolling content, above the safe-area inset.
-- Settings use a bounded 640dp column with Privacy, Voice and local AI, and
-  Your journal sections. App lock is a direct switch; destination rows show
+- Settings use a bounded 640dp column with Privacy, Voice and local AI,
+  Your journal, and App updates sections. Updates expose an explicit check,
+  installed/available versions, download progress/cancellation, and a separate
+  Install action after verification. Automatic update dialogs wait for idle,
+  unlocked reading surfaces and offer Later and Ignore this version; never
+  interrupt capture or editing. App lock is a direct switch; destination rows show
   short summaries. Transcription groups audio language with its model catalog
   and expandable recovery actions. AI organization retains its optional catalog.
   Search model is a separate destination alongside Transcription and AI

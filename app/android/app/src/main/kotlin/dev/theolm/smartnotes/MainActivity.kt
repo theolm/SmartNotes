@@ -8,11 +8,16 @@ import android.content.Context
 import android.os.Build
 import android.os.StatFs
 import android.content.Intent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : FlutterFragmentActivity() {
     private var notificationResult: MethodChannel.Result? = null
     private var processingChannel: MethodChannel? = null
     private var pendingEntryId: String? = null
+    private var preparedUpdate: Triple<String, Long, Long>? = null
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -38,6 +43,50 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val updates = AppUpdates(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.theolm.smartnotes/app_updates")
+            .setMethodCallHandler { call, result ->
+                lifecycleScope.launch {
+                    try {
+                        when (call.method) {
+                            "abi" -> {
+                                val supported = Build.SUPPORTED_ABIS.filter {
+                                    if (android.os.Process.is64Bit()) it in setOf("arm64-v8a", "x86_64")
+                                    else it in setOf("armeabi-v7a", "x86")
+                                }
+                                result.success(supported.firstOrNull())
+                            }
+                            "status" -> result.success(withContext(Dispatchers.IO) { updates.status() })
+                            "start" -> { withContext(Dispatchers.IO) { updates.start(org.json.JSONObject(call.arguments as Map<*, *>)) }; result.success(null) }
+                            "cancel" -> { withContext(Dispatchers.IO) { updates.cancel() }; result.success(null) }
+                            "takeOpen" -> {
+                                val open = intent?.getBooleanExtra("open_app_updates", false) == true
+                                intent?.removeExtra("open_app_updates")
+                                result.success(open)
+                            }
+                            "prepareInstall" -> {
+                                preparedUpdate = withContext(Dispatchers.IO) {
+                                    val record = updates.record() ?: error("missingUpdate")
+                                    val file = updates.file(record)
+                                    try { updates.validate(record, file) }
+                                    catch (error: Exception) { updates.update(record.getString("token"), "failed"); throw error }
+                                    Triple(record.getString("token"), file.length(), file.lastModified())
+                                }
+                                result.success(null)
+                            }
+                            "install" -> {
+                                val record = updates.record() ?: error("missingUpdate")
+                                val file = updates.file(record)
+                                require(preparedUpdate == Triple(record.getString("token"), file.length(), file.lastModified()))
+                                preparedUpdate = null
+                                updates.install(this@MainActivity)
+                                result.success(null)
+                            }
+                            else -> result.notImplemented()
+                        }
+                    } catch (error: Exception) { result.error("app-update", error.message, null) }
+                }
+            }
         val downloads = ModelDownloads(applicationContext)
         val processing = ProcessingNotifications(applicationContext)
         openEntryFrom(intent)

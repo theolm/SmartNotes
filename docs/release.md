@@ -14,6 +14,37 @@ The workflow runs when a semver tag is pushed and produces:
 Android APKs are split per ABI to keep each download small. The release is only
 created after all build jobs succeed.
 
+## In-app update contract
+
+The app queries the public GitHub `releases/latest` endpoint once per process
+startup and on explicit manual checks. Publish stable semantic-version tags;
+drafts and prereleases are not update candidates. Version build metadata is not
+used to decide whether a release is newer.
+
+For Android's integrated updater, preserve the exact asset names above and
+publish `SHA256SUMS.txt` with one standard sha256sum entry per asset. The app
+selects the ABI matching its running process. APKs must retain the production
+application ID and signing certificate, match the release version, and have a
+strictly increasing versionCode. Missing compatible APK/checksum assets fall
+back to opening the release page. Do not replace already published assets with
+different binaries: clients may already have downloaded their checksums.
+
+Downloads use a separate WorkManager job and app-private files, with progress,
+cancellation, bounded network retries, and partial-file resume. Installation
+requires the user's Install action, unknown-source authorization where required,
+and confirmation in Android's installer. iOS and desktop open the release page
+only. GitHub distributions must remain separate from any future Play Store build
+that cannot use this APK installation permission/flow.
+
+Before release, test two consecutively versioned, identically signed APKs on a
+device: background download, process restart, cancellation, offline recovery,
+low storage, notifications denied, unknown-source permission denied/granted,
+installer cancellation, wrong checksum/package/signer, and preservation of the
+journal and downloaded models after successful installation. Never uninstall a
+user's journal to test updates. Use an isolated test application ID and a native
+test harness with matching APK/checksum fixtures; the production downloader
+intentionally accepts only this repository's GitHub release URLs.
+
 ## CI validation
 
 PR checks and release builds use Flutter 3.47.8, pinned to its full Git revision

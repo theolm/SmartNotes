@@ -94,6 +94,156 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @settingsAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String settingsAppVersion(String version);
+
+  /// No description provided for @updateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App updates'**
+  String get updateTitle;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateAvailable;
+
+  /// No description provided for @updateVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed: {installed}\nAvailable: {available}'**
+  String updateVersions(String installed, String available);
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update ({size} MB)'**
+  String updateDownload(String size);
+
+  /// No description provided for @updateRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'View release'**
+  String get updateRelease;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLater;
+
+  /// No description provided for @updateIgnore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore this version'**
+  String get updateIgnore;
+
+  /// No description provided for @updateCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get updateCheck;
+
+  /// No description provided for @updateCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'You are up to date.'**
+  String get updateCurrent;
+
+  /// No description provided for @updateChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get updateChecking;
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check for updates. Check your connection and try again later.'**
+  String get updateCheckFailed;
+
+  /// No description provided for @updateActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download or open this update. Try again later.'**
+  String get updateActionFailed;
+
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation could not start. Allow installation from SmartNotes in Android settings, then tap Install again. If the APK is no longer valid, download it again.'**
+  String get updateInstallFailed;
+
+  /// No description provided for @updateInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get updateInstall;
+
+  /// No description provided for @updateInstallBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish recording, processing, or editing before installing the update.'**
+  String get updateInstallBusy;
+
+  /// No description provided for @updateCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel download'**
+  String get updateCancel;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading app update…'**
+  String get updateDownloading;
+
+  /// No description provided for @updateVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying app update…'**
+  String get updateVerifying;
+
+  /// No description provided for @updateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Update ready to install'**
+  String get updateReady;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update download failed. Check your connection and available space, then try again.'**
+  String get updateFailed;
+
+  /// No description provided for @updateCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Update download cancelled.'**
+  String get updateCancelled;
+
+  /// No description provided for @updateChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'App updates'**
+  String get updateChannel;
+
+  /// No description provided for @updateNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SmartNotes update'**
+  String get updateNotificationTitle;
+
+  /// No description provided for @updateInstallExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Android will ask you to confirm installation. Your journal and downloaded models are preserved.'**
+  String get updateInstallExplanation;
+
   /// No description provided for @embeddingCatalogTitle.
   ///
   /// In en, this message translates to:

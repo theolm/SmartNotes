@@ -31,6 +31,8 @@ import 'package:smartnotes/data/services/embedding_model_service.dart'
     as _i1059;
 import 'package:smartnotes/data/services/formatting_model_service.dart'
     as _i241;
+import 'package:smartnotes/data/services/github_app_update_service.dart'
+    as _i910;
 import 'package:smartnotes/data/services/journal_archive_service.dart' as _i474;
 import 'package:smartnotes/data/services/local_auth_service.dart' as _i561;
 import 'package:smartnotes/data/services/local_embedding_service.dart' as _i461;
@@ -55,6 +57,7 @@ import 'package:smartnotes/data/services/processing_feedback_service.dart'
 import 'package:smartnotes/data/services/recording_signal_detector.dart'
     as _i375;
 import 'package:smartnotes/data/services/speech_model_service.dart' as _i123;
+import 'package:smartnotes/domain/services/i_app_update_service.dart' as _i266;
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart'
     as _i1071;
 import 'package:smartnotes/domain/services/i_embedding_model_service.dart'
@@ -103,6 +106,7 @@ import 'package:smartnotes/presentation/screens/settings/settings_store.dart'
     as _i633;
 import 'package:smartnotes/presentation/screens/settings/speech_models_store.dart'
     as _i462;
+import 'package:smartnotes/presentation/stores/app_update_store.dart' as _i1061;
 import 'package:smartnotes/presentation/stores/model_downloads_store.dart'
     as _i934;
 
@@ -137,6 +141,12 @@ Future<_i174.GetIt> $initGetIt(
     () => _i375.RecordingSignalDetector(),
   );
   gh.factory<_i269.IFileStorageService>(() => _i734.FileStorageService());
+  gh.lazySingleton<_i266.IAppUpdateService>(
+    () => _i910.GithubAppUpdateService(
+      gh<_i519.Client>(),
+      gh<_i460.SharedPreferences>(),
+    ),
+  );
   gh.lazySingleton<_i422.IEntryDraftRepository>(
     () => _i1055.LocalEntryDraftRepository(),
   );
@@ -170,6 +180,9 @@ Future<_i174.GetIt> $initGetIt(
   );
   gh.factory<_i791.ISettingsService>(
     () => _i191.SharedPreferencesSettingsService(gh<_i460.SharedPreferences>()),
+  );
+  gh.lazySingleton<_i1061.AppUpdateStore>(
+    () => _i1061.AppUpdateStore(gh<_i266.IAppUpdateService>()),
   );
   gh.factory<_i822.ILocalAuthService>(
     () => _i561.LocalAuthService(gh<_i152.LocalAuthentication>()),
