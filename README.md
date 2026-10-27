@@ -4,6 +4,27 @@ SmartNotes is an open-source, local-first voice journal for Android, iOS, and ma
 
 The app is early-stage (`0.1.x`). The interface is currently English; the language used for transcription is selected separately.
 
+## Download
+
+### Android · Obtainium
+
+[Obtainium](https://obtainium.imranr.dev/) installs SmartNotes directly from GitHub Releases and checks for new versions, so you do not have to download each update manually.
+
+[<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="72">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/theolm/SmartNotes)
+
+1. Install Obtainium from its [official releases](https://github.com/ImranR98/Obtainium/releases/latest).
+2. On your Android device, tap the badge above and confirm adding SmartNotes in Obtainium.
+3. Enable automatic APK filtering by architecture in the app's Obtainium settings, then install SmartNotes. Releases provide separate APKs for `arm64-v8a`, `armeabi-v7a`, and `x86_64`.
+4. Configure background update checks and automatic downloads in Obtainium as desired. Downloads and installations depend on your settings and Android permissions; installation may still require confirmation.
+
+For manual setup, open Obtainium → **Add App** and paste `https://github.com/theolm/SmartNotes`. The badge's redirect page also provides guidance if Obtainium is not installed.
+
+Prefer a direct download? Get the APK from [GitHub Releases](https://github.com/theolm/SmartNotes/releases/latest). Choose `arm64-v8a` for most modern phones, `armeabi-v7a` for older 32-bit phones, or `x86_64` for x86 devices and emulators.
+
+Obtainium is Android-only. macOS downloads are also available on the releases page.
+
+<!-- Official Obtainium badge, hosted locally as recommended: https://wiki.obtainium.imranr.dev/deep_links/#badging-your-project -->
+
 ## Features
 
 - One-tap voice capture; the original recording is kept for playback and retry.
