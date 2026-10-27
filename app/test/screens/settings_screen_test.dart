@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:smartnotes/application/journal_lifecycle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:mobx/mobx.dart' show runInAction;
+import 'package:mobx/mobx.dart' show runInAction, ObservableList;
+import 'package:smartnotes/domain/entities/app_update.dart';
+import 'package:smartnotes/domain/entities/journal_entry.dart';
+import 'package:smartnotes/presentation/app_store.dart';
+import 'package:smartnotes/presentation/screens/home/home_store.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -31,6 +36,14 @@ class MockAppUpdateService extends Mock implements IAppUpdateService {}
 class MockLocalAuthService extends Mock implements ILocalAuthService {}
 
 class MockRouter extends Mock implements StackRouter {}
+
+class MockRootRouter extends Mock implements RootStackRouter {}
+
+class MockRouteData extends Mock implements RouteData<dynamic> {}
+
+class MockAppStore extends Mock implements AppStore {}
+
+class MockHomeStore extends Mock implements HomeStore {}
 
 class MockJournalLifecycle extends Mock implements JournalLifecycle {}
 
@@ -59,11 +72,13 @@ class _TestableSettingsScreen extends StatelessWidget {
 void main() {
   late MockSettingsService mockService;
   late MockLocalAuthService mockLocalAuthService;
+  late MockAppUpdateService updatesService;
 
   setUp(() {
     mockService = MockSettingsService();
+    updatesService = MockAppUpdateService();
     GetIt.I.registerSingleton<AppUpdateStore>(
-      AppUpdateStore(MockAppUpdateService()),
+      AppUpdateStore(updatesService),
     );
     mockLocalAuthService = MockLocalAuthService();
     GetIt.I.registerSingleton<ISpeechModelService>(MemorySpeechModels());
@@ -93,6 +108,65 @@ void main() {
   tearDown(() {
     GetIt.I.reset();
   });
+
+  for (final leave in ['background', 'another route', 'disposed settings']) {
+    testWidgets('does not install after $leave during APK validation', (
+      tester,
+    ) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final router = MockRouter();
+      final root = MockRootRouter();
+      final route = MockRouteData();
+      final app = MockAppStore();
+      final home = MockHomeStore();
+      GetIt.I.registerSingleton<AppStore>(app);
+      GetIt.I.registerSingleton<HomeStore>(home);
+      when(() => app.isUnlocked).thenReturn(true);
+      when(() => home.isRecording).thenReturn(false);
+      when(() => home.isProcessing).thenReturn(false);
+      when(() => home.entries).thenReturn(ObservableList<JournalEntry>());
+      when(() => router.root).thenReturn(root);
+      when(() => router.hasPagelessTopRoute).thenReturn(false);
+      when(() => root.topRoute).thenReturn(route);
+      when(() => route.name).thenReturn(SettingsRoute.name);
+      when(() => updatesService.downloadStatus()).thenAnswer(
+        (_) async =>
+            const UpdateDownload(state: 'ready', version: '0.3.0', progress: 1),
+      );
+      when(
+        () => updatesService.takeOpenRequest(),
+      ).thenAnswer((_) async => false);
+      final validation = Completer<void>();
+      when(
+        () => updatesService.prepareInstall(),
+      ).thenAnswer((_) => validation.future);
+      final updates = GetIt.I<AppUpdateStore>();
+      await updates.refresh();
+      await tester.pumpWidget(_TestableSettingsScreen(router: router));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+          find.widgetWithText(FilledButton, 'Install'),
+          200,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(FilledButton, 'Install'));
+      await tester.pump();
+      verify(() => updatesService.prepareInstall()).called(1);
+      if (leave == 'background') {
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      } else if (leave == 'another route') {
+        when(() => route.name).thenReturn(BackupSettingsRoute.name);
+      } else {
+        await tester.pumpWidget(const SizedBox());
+      }
+      validation.complete();
+      await tester.pump();
+      expect(updates.error, 'installBusy');
+      expect(updates.download.state, 'ready');
+      verifyNever(() => updatesService.install());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+  }
 
   testWidgets('shows the installed version discreetly at the bottom', (
     tester,

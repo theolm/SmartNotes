@@ -75,6 +75,9 @@ class MainActivity : FlutterFragmentActivity() {
                                 result.success(null)
                             }
                             "install" -> {
+                                // Guard the final platform boundary too: Flutter's
+                                // lifecycle can change while the channel call is queued.
+                                require(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) { "appNotResumed" }
                                 val record = updates.record() ?: error("missingUpdate")
                                 val file = updates.file(record)
                                 require(preparedUpdate == Triple(record.getString("token"), file.length(), file.lastModified()))

@@ -153,6 +153,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   AppUpdateSettings(
                     store: getIt<AppUpdateStore>(),
                     canInstall: () {
+                      if (!mounted ||
+                          WidgetsBinding.instance.lifecycleState !=
+                              AppLifecycleState.resumed ||
+                          context.router.root.topRoute.name !=
+                              SettingsRoute.name ||
+                          context.router.hasPagelessTopRoute) {
+                        return false;
+                      }
                       final home = getIt<HomeStore>();
                       return getIt<AppStore>().isUnlocked &&
                           !updateWorkIsActive(home) &&

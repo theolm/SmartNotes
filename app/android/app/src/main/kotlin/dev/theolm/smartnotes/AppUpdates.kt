@@ -206,9 +206,20 @@ class AppUpdateWorker(context: Context, params: WorkerParameters) : CoroutineWor
         if (r.getString("token") != token || r.getString("state") == "cancelled") return@withContext Result.success()
         val partial = updates.partial(r)
         try {
-            val notification = updates.notification(r, "downloading")
+            val notification = updates.notification(r, if (updates.file(r).isFile) "verifying" else "downloading")
             setForeground(if (Build.VERSION.SDK_INT >= 29) ForegroundInfo(AppUpdates.NOTIFICATION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 else ForegroundInfo(AppUpdates.NOTIFICATION, notification))
+            // The process can die after rename, before saving ready or returning
+            // success. Validate the final file before touching the partial/network.
+            if (recoverPromotedUpdate(updates.file(r),
+                    validate = { updates.validate(r, it) },
+                    publishReady = {
+                        if (isStopped) throw kotlinx.coroutines.CancellationException()
+                        if (updates.update(token, "ready", r.getLong("bytes"))) {
+                            partial.delete()
+                            updates.notifyTerminal(token, "ready")
+                        }
+                    })) return@withContext Result.success()
             check(updates.update(token, "downloading"))
             val expected = r.getLong("bytes")
             if (partial.length() > expected) partial.delete()
