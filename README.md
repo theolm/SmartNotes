@@ -21,9 +21,32 @@ For manual setup, open Obtainium → **Add App** and paste `https://github.com/t
 
 Prefer a direct download? Get the APK from [GitHub Releases](https://github.com/theolm/SmartNotes/releases/latest). Choose `arm64-v8a` for most modern phones, `armeabi-v7a` for older 32-bit phones, or `x86_64` for x86 devices and emulators.
 
-Obtainium is Android-only. macOS downloads are also available on the releases page.
+Obtainium is Android-only.
 
 <!-- Official Obtainium badge, hosted locally as recommended: https://wiki.obtainium.imranr.dev/deep_links/#badging-your-project -->
+
+### macOS
+
+Requires macOS 14 or newer. The universal DMG supports both Apple Silicon and Intel Macs.
+
+1. Download `SmartNotes-<version>-macos-universal.dmg` from [GitHub Releases](https://github.com/theolm/SmartNotes/releases/latest).
+2. Open the DMG and drag **SmartNotes** into **Applications**.
+3. Eject the disk image and open SmartNotes from Applications.
+4. The app is ad-hoc signed and **not notarized**, so macOS may block the first launch. After attempting to open it, go to **System Settings → Privacy & Security → Open Anyway** and confirm. On macOS 14, you can also right-click the app and choose **Open**.
+5. Allow microphone access when prompted to record voice notes.
+
+Only approve the app if you downloaded it from this repository's releases and trust the source. See [the release guide](docs/release.md#macos-builds) for signing details.
+
+### iOS · Build from source
+
+Requires iOS 16.4 or newer and a Mac with Xcode, CocoaPods, and Flutter installed. The release workflow does **not** currently publish an iOS IPA; installation requires building and signing the app yourself.
+
+1. Download or clone this repository, then follow [Build and run](#build-and-run) through the code-generation steps in the `app/` directory.
+2. Connect your iPhone to the Mac and enable **Developer Mode** on the phone if prompted.
+3. Open `app/ios/Runner.xcworkspace` in Xcode. Select the **Runner** target, then choose your development team under **Signing & Capabilities**. Use a bundle identifier available to your team if required.
+4. Select your iPhone as the run destination and click **Run**. Complete any device pairing or developer-trust prompts, then allow microphone access when prompted by SmartNotes.
+
+An Apple ID and valid development signing are required. Free Personal Team installations expire and must be rebuilt periodically; this is not an automatic-update distribution channel.
 
 ## Features
 
