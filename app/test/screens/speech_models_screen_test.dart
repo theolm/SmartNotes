@@ -8,6 +8,8 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/data/datasources/local/shared_preferences_settings_service.dart';
 import 'package:smartnotes/data/services/device_profile_service.dart';
 import 'package:smartnotes/domain/entities/device_profile.dart';
+import 'package:smartnotes/domain/entities/speech_acceleration.dart';
+import 'package:smartnotes/domain/services/i_speech_acceleration_service.dart';
 import 'package:smartnotes/domain/entities/speech_model.dart';
 import 'package:smartnotes/domain/services/i_local_auth_service.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
@@ -18,6 +20,8 @@ import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
 import '../helpers/local_services.dart';
 
 class _Auth extends Mock implements ILocalAuthService {}
+
+class _Acceleration extends Mock implements ISpeechAccelerationService {}
 
 class _Device extends DeviceProfileService {
   @override
@@ -30,6 +34,7 @@ class _Device extends DeviceProfileService {
 
 void main() {
   late SpeechModelsStore store;
+  late _Acceleration acceleration;
   setUp(() async {
     SharedPreferences.setMockInitialValues({'audioLanguage': 'pt'});
     final settings = SharedPreferencesSettingsService(
@@ -38,7 +43,23 @@ void main() {
     final auth = _Auth();
     when(() => auth.isAvailable()).thenAnswer((_) async => false);
     final models = MemorySpeechModels(settings: settings);
-    final preferences = SettingsStore(settings, auth, models);
+    acceleration = _Acceleration();
+    when(() => acceleration.initialize()).thenAnswer((_) async {});
+    when(
+      () => acceleration.status(
+        refresh: any(named: 'refresh'),
+        probe: any(named: 'probe'),
+      ),
+    ).thenAnswer(
+      (_) async =>
+          const SpeechAccelerationStatus(state: SpeechAccelerationState.available),
+    );
+    final preferences = SettingsStore(
+      settings,
+      auth,
+      models,
+      acceleration: acceleration,
+    );
     await preferences.load();
     store = SpeechModelsStore(
       models,
@@ -299,4 +320,32 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('renders the GPU beta switch and explains a circuit failure', (
+    tester,
+  ) async {
+    await render(tester);
+    expect(find.text('GPU acceleration (beta)'), findsOneWidget);
+    expect(find.textContaining('Uses the phone GPU'), findsOneWidget);
+
+    when(
+      () => acceleration.status(
+        refresh: any(named: 'refresh'),
+        probe: any(named: 'probe'),
+      ),
+    ).thenAnswer(
+      (_) async => const SpeechAccelerationStatus(
+        state: SpeechAccelerationState.circuitOpen,
+        reason: SpeechBackendReason.circuitOpen,
+      ),
+    );
+    await GetIt.I<SettingsStore>().refreshGpuStatus(probe: true);
+    await tester.pumpAndSettle();
+    expect(find.text('Turned off after a GPU failure.'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(
+      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      isFalse,
+    );
+  });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'package:smartnotes/core/utils/inference_trace.dart';
 import 'package:injectable/injectable.dart';
 import 'package:smartnotes/domain/entities/inference_cancelled.dart';
 
@@ -23,7 +24,12 @@ class LocalInferenceQueue {
     (background ? _background : _foreground).add(() async {
       try {
         checkInferenceCancelled(isCancelled);
-        result.complete(await job());
+        result.complete(
+          await InferenceTrace.run(
+            background ? 'queue.background' : 'queue.foreground',
+            job,
+          ),
+        );
       } catch (error, stack) {
         result.completeError(error, stack);
       }

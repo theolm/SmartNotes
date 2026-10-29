@@ -12,6 +12,7 @@ import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
 import 'package:smartnotes/presentation/widgets/speech_model_catalog.dart';
 import 'package:smartnotes/presentation/widgets/audio_language_options.dart';
 import 'package:smartnotes/data/services/speech_model_service.dart';
+import 'package:smartnotes/domain/entities/speech_acceleration.dart';
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
 
 @RoutePage()
@@ -43,6 +44,7 @@ class _SpeechModelsScreenState extends State<SpeechModelsScreen>
     unawaited(
       store.load(_requestedLanguage),
     );
+    unawaited(getIt<SettingsStore>().refreshGpuStatus(probe: true));
   }
 
   @override
@@ -150,6 +152,8 @@ class _SpeechModelsScreenState extends State<SpeechModelsScreen>
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          _gpuAccelerationTile(context, l10n),
+          const SizedBox(height: AppSpacing.md),
           if (store.error != null && !store.busy)
             Align(
               alignment: Alignment.centerLeft,
@@ -212,6 +216,59 @@ class _SpeechModelsScreenState extends State<SpeechModelsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _gpuAccelerationTile(BuildContext context, AppLocalizations l10n) {
+    final settings = getIt<SettingsStore>();
+    final status = settings.gpuStatus;
+    final circuitOpen = status.state == SpeechAccelerationState.circuitOpen;
+    final unsupported =
+        status.state == SpeechAccelerationState.unsupportedDevice ||
+        status.state == SpeechAccelerationState.capabilityFailed;
+    final subtitle = switch (status.state) {
+      SpeechAccelerationState.circuitOpen => l10n.gpuAccelerationCircuitOpen,
+      SpeechAccelerationState.unsupportedDevice ||
+      SpeechAccelerationState.capabilityFailed =>
+        l10n.gpuAccelerationUnsupported,
+      SpeechAccelerationState.checking => l10n.gpuAccelerationChecking,
+      SpeechAccelerationState.disabledByUser ||
+      SpeechAccelerationState.available =>
+        settings.gpuPreferred
+            ? l10n.gpuAccelerationEnabled
+            : l10n.gpuAccelerationDisabled,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.gpuAccelerationTitle),
+          subtitle: Text(subtitle),
+          value: circuitOpen || unsupported
+              ? false
+              : settings.gpuPreferred,
+          onChanged: settings.isUpdatingGpu || unsupported
+              ? null
+              : (value) {
+                  if (circuitOpen) {
+                    unawaited(settings.retryGpu());
+                  } else {
+                    unawaited(settings.setGpuPreferred(value));
+                  }
+                },
+        ),
+        if (circuitOpen)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: settings.isUpdatingGpu
+                  ? null
+                  : () => unawaited(settings.retryGpu()),
+              child: Text(l10n.gpuAccelerationTryAgain),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -5,6 +5,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.app.ActivityManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.StatFs
 import android.content.Intent
@@ -174,7 +175,16 @@ class MainActivity : FlutterFragmentActivity() {
                             "lowMemory" to manager.isLowRamDevice,
                             "is64Bit" to android.os.Process.is64Bit(),
                             "processors" to Runtime.getRuntime().availableProcessors(),
-                            "soc" to if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else Build.HARDWARE
+                            "soc" to if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else Build.HARDWARE,
+                            "sdkInt" to Build.VERSION.SDK_INT,
+                            "abis" to Build.SUPPORTED_ABIS.toList(),
+                            // Vulkan 1.1 is the minimum used by the optional
+                            // arm64 speech library; never probe it at API < 28.
+                            "vulkan11" to (Build.VERSION.SDK_INT >= 28 &&
+                                packageManager.hasSystemFeature(
+                                    PackageManager.FEATURE_VULKAN_HARDWARE_VERSION,
+                                    0x401000
+                                ))
                         ))
                     }
                     "freeStorage" -> result.success(StatFs(filesDir.absolutePath).availableBytes)

@@ -115,6 +115,11 @@ void main() {
   test(
     'Cantonese is recommended only when the actual checkpoint includes it',
     () {
+      for (final device in [profile(6), profile(8), profile(12)]) {
+        final recommendation = SpeechRecommendationPolicy.recommend(device, 'yue');
+        expect(recommendation.model, SpeechModel.turbo);
+        expect(recommendation.model.supports('yue'), isTrue);
+      }
       expect(
         SpeechRecommendationPolicy.recommend(
           const DeviceProfile(),

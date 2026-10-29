@@ -457,5 +457,15 @@
   "lockTitle": "Journal locked",
   "lockSubtitle": "Verify your identity with your fingerprint or device credentials to unlock your journal.",
   "unlock": "Unlock",
-  "unlockReason": "Unlock SmartNotes"
+  "unlockReason": "Unlock SmartNotes",
+  "gpuAccelerationTitle": "GPU acceleration (beta)",
+  "gpuAccelerationEnabled": "Uses the phone GPU when available and falls back to the CPU. Experimental on some devices.",
+  "gpuAccelerationDisabled": "Always uses the CPU.",
+  "gpuAccelerationUnsupported": "Not available on this device.",
+  "gpuAccelerationChecking": "Checking GPU support…",
+  "gpuAccelerationFailed": "The GPU could not be initialized. Transcription uses the CPU.",
+  "gpuAccelerationCircuitOpen": "Turned off after a GPU failure.",
+  "gpuAccelerationTryAgain": "Try again",
+  "gpuSummaryGpu": "GPU",
+  "gpuSummaryCpu": "CPU"
 }

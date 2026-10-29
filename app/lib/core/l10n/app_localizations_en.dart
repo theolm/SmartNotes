@@ -1514,4 +1514,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unlockReason => 'Unlock SmartNotes';
+
+  @override
+  String get gpuAccelerationTitle => 'GPU acceleration (beta)';
+
+  @override
+  String get gpuAccelerationEnabled =>
+      'Uses the phone GPU when available and falls back to the CPU. Experimental on some devices.';
+
+  @override
+  String get gpuAccelerationDisabled => 'Always uses the CPU.';
+
+  @override
+  String get gpuAccelerationUnsupported => 'Not available on this device.';
+
+  @override
+  String get gpuAccelerationChecking => 'Checking GPU support…';
+
+  @override
+  String get gpuAccelerationFailed =>
+      'The GPU could not be initialized. Transcription uses the CPU.';
+
+  @override
+  String get gpuAccelerationCircuitOpen => 'Turned off after a GPU failure.';
+
+  @override
+  String get gpuAccelerationTryAgain => 'Try again';
+
+  @override
+  String get gpuSummaryGpu => 'GPU';
+
+  @override
+  String get gpuSummaryCpu => 'CPU';
 }

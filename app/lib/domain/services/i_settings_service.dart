@@ -22,6 +22,11 @@ abstract class ISettingsService {
   String getAppLocale();
   Future<void> setAppLocale(String locale);
 
+  /// Whether eligible Android devices may use the optional Vulkan runtime.
+  /// Absent means enabled: the beta ships with GPU as the default.
+  bool getSpeechGpuPreferred();
+  Future<void> setSpeechGpuPreferred(bool preferred);
+
   bool getLockAppEnabled();
   Future<void> setLockAppEnabled(bool enabled);
 }

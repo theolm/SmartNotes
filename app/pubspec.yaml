@@ -37,7 +37,12 @@ dependencies:
   diacritic: ^0.1.6
   flutter_slidable: ^4.0.3
   local_auth: ^3.0.2
-  whisper_ggml: 2.7.1
+  # SmartNotes fork: optional Android Vulkan speech backend. Pinned to an
+  # immutable commit on the fork's smartnotes/vulkan branch.
+  whisper_ggml:
+    git:
+      url: https://github.com/theolm/whisper_ggml.git
+      ref: 330b36b8cd36bf72409a6a5272cc403ed8d5f58e
   ffmpeg_kit_flutter_new_min: 3.6.7
   ffi: ^2.1.4
   llamadart: 0.11.1

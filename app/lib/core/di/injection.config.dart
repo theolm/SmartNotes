@@ -33,6 +33,7 @@ import 'package:smartnotes/data/services/formatting_model_service.dart'
     as _i241;
 import 'package:smartnotes/data/services/github_app_update_service.dart'
     as _i910;
+import 'package:smartnotes/data/services/gpu_circuit_store.dart' as _i333;
 import 'package:smartnotes/data/services/journal_archive_service.dart' as _i474;
 import 'package:smartnotes/data/services/local_auth_service.dart' as _i561;
 import 'package:smartnotes/data/services/local_embedding_service.dart' as _i461;
@@ -56,7 +57,10 @@ import 'package:smartnotes/data/services/processing_feedback_service.dart'
     as _i751;
 import 'package:smartnotes/data/services/recording_signal_detector.dart'
     as _i375;
+import 'package:smartnotes/data/services/speech_acceleration_service.dart'
+    as _i1003;
 import 'package:smartnotes/data/services/speech_model_service.dart' as _i123;
+import 'package:smartnotes/data/services/whisper_transcriber.dart' as _i212;
 import 'package:smartnotes/domain/services/i_app_update_service.dart' as _i266;
 import 'package:smartnotes/domain/services/i_audio_recording_service.dart'
     as _i1071;
@@ -72,7 +76,7 @@ import 'package:smartnotes/domain/services/i_file_storage_service.dart'
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart'
     as _i984;
 import 'package:smartnotes/domain/services/i_journal_archive_service.dart'
-    as _i212;
+    as _i213;
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart'
     as _i112;
 import 'package:smartnotes/domain/services/i_local_auth_service.dart' as _i822;
@@ -83,6 +87,8 @@ import 'package:smartnotes/domain/services/i_platform_model_downloader.dart'
 import 'package:smartnotes/domain/services/i_recording_metadata.dart' as _i991;
 import 'package:smartnotes/domain/services/i_recording_playback.dart' as _i1041;
 import 'package:smartnotes/domain/services/i_settings_service.dart' as _i791;
+import 'package:smartnotes/domain/services/i_speech_acceleration_service.dart'
+    as _i531;
 import 'package:smartnotes/domain/services/i_speech_model_service.dart'
     as _i824;
 import 'package:smartnotes/domain/services/i_transcription_service.dart'
@@ -122,6 +128,7 @@ Future<_i174.GetIt> $initGetIt(
     () => registerModule.prefs,
     preResolve: true,
   );
+  gh.factory<_i212.WhisperTranscriber>(() => const _i212.WhisperTranscriber());
   gh.singleton<_i1039.AudioRecorder>(() => registerModule.audioRecorder);
   gh.singleton<_i519.Client>(() => registerModule.httpClient);
   gh.singleton<_i152.LocalAuthentication>(
@@ -131,6 +138,7 @@ Future<_i174.GetIt> $initGetIt(
   gh.lazySingleton<_i406.DeviceProfileService>(
     () => _i406.DeviceProfileService(),
   );
+  gh.lazySingleton<_i333.GpuCircuitStore>(() => _i333.GpuCircuitStore());
   gh.lazySingleton<_i935.LocalInferenceQueue>(
     () => _i935.LocalInferenceQueue(),
   );
@@ -214,7 +222,7 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i935.LocalInferenceQueue>(),
     ),
   );
-  gh.lazySingleton<_i212.IJournalArchiveService>(
+  gh.lazySingleton<_i213.IJournalArchiveService>(
     () => _i474.JournalArchiveService(
       gh<_i877.LocalDatabase>(),
       gh<_i269.IFileStorageService>(),
@@ -230,6 +238,13 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i537.ModelVerificationStore>(),
     ),
   );
+  gh.lazySingleton<_i531.ISpeechAccelerationService>(
+    () => _i1003.SpeechAccelerationService(
+      gh<_i791.ISettingsService>(),
+      gh<_i406.DeviceProfileService>(),
+      gh<_i333.GpuCircuitStore>(),
+    ),
+  );
   gh.lazySingleton<_i158.IEntrySearchService>(
     () => _i10.LocalEntrySearchService(
       gh<_i877.LocalDatabase>(),
@@ -243,24 +258,10 @@ Future<_i174.GetIt> $initGetIt(
       downloads: gh<_i934.ModelDownloadsStore>(),
     ),
   );
-  gh.lazySingleton<_i164.ITranscriptionService>(
-    () => _i1008.LocalTranscriptionService(
-      gh<_i824.ISpeechModelService>(),
-      gh<_i791.ISettingsService>(),
-      gh<_i935.LocalInferenceQueue>(),
-    ),
-  );
   gh.factory<_i711.EntryEditStore>(
     () => _i711.EntryEditStore(
       gh<_i112.IJournalEntryService>(),
       gh<_i422.IEntryDraftRepository>(),
-    ),
-  );
-  gh.lazySingleton<_i139.INoteProcessingService>(
-    () => _i897.LocalNoteProcessingService(
-      gh<_i984.IFormattingModelService>(),
-      gh<_i164.ITranscriptionService>(),
-      gh<_i935.LocalInferenceQueue>(),
     ),
   );
   gh.singleton<_i633.SettingsStore>(
@@ -268,6 +269,16 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i791.ISettingsService>(),
       gh<_i822.ILocalAuthService>(),
       gh<_i824.ISpeechModelService>(),
+      acceleration: gh<_i531.ISpeechAccelerationService>(),
+    ),
+  );
+  gh.lazySingleton<_i164.ITranscriptionService>(
+    () => _i1008.LocalTranscriptionService(
+      gh<_i824.ISpeechModelService>(),
+      gh<_i791.ISettingsService>(),
+      gh<_i935.LocalInferenceQueue>(),
+      acceleration: gh<_i531.ISpeechAccelerationService>(),
+      transcriber: gh<_i212.WhisperTranscriber>(),
     ),
   );
   gh.singleton<_i739.EmbeddingModelsStore>(
@@ -291,17 +302,11 @@ Future<_i174.GetIt> $initGetIt(
       downloads: gh<_i934.ModelDownloadsStore>(),
     ),
   );
-  gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
-    () => _i926.ProcessAudioNoteUseCase(
-      gh<_i139.INoteProcessingService>(),
-      gh<_i112.IJournalEntryService>(),
-    ),
-  );
-  gh.factory<_i207.EntryDetailStore>(
-    () => _i207.EntryDetailStore(
-      gh<_i112.IJournalEntryService>(),
-      gh<_i926.ProcessAudioNoteUseCase>(),
+  gh.lazySingleton<_i139.INoteProcessingService>(
+    () => _i897.LocalNoteProcessingService(
       gh<_i984.IFormattingModelService>(),
+      gh<_i164.ITranscriptionService>(),
+      gh<_i935.LocalInferenceQueue>(),
     ),
   );
   gh.factory<_i588.OnboardingStore>(
@@ -314,6 +319,19 @@ Future<_i174.GetIt> $initGetIt(
       downloads: gh<_i934.ModelDownloadsStore>(),
       processingFeedback: gh<_i751.ProcessingFeedbackService>(),
       embeddings: gh<_i739.EmbeddingModelsStore>(),
+    ),
+  );
+  gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
+    () => _i926.ProcessAudioNoteUseCase(
+      gh<_i139.INoteProcessingService>(),
+      gh<_i112.IJournalEntryService>(),
+    ),
+  );
+  gh.factory<_i207.EntryDetailStore>(
+    () => _i207.EntryDetailStore(
+      gh<_i112.IJournalEntryService>(),
+      gh<_i926.ProcessAudioNoteUseCase>(),
+      gh<_i984.IFormattingModelService>(),
     ),
   );
   gh.lazySingleton<_i108.JournalLifecycle>(
@@ -339,7 +357,7 @@ Future<_i174.GetIt> $initGetIt(
   gh.singleton<_i304.LocalDataStore>(
     () => _i304.LocalDataStore(
       gh<_i158.IEntrySearchService>(),
-      gh<_i212.IJournalArchiveService>(),
+      gh<_i213.IJournalArchiveService>(),
       gh<_i872.IEmbeddingModelService>(),
       gh<_i108.JournalLifecycle>(),
     ),

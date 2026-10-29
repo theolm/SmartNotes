@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 import 'package:mobx/mobx.dart';
 
+import 'package:smartnotes/domain/entities/speech_acceleration.dart';
 import 'package:smartnotes/domain/services/i_local_auth_service.dart';
 import 'package:smartnotes/domain/services/i_settings_service.dart';
+import 'package:smartnotes/domain/services/i_speech_acceleration_service.dart';
 import 'package:smartnotes/domain/services/i_speech_model_service.dart';
 
 part 'settings_store.g.dart';
@@ -16,13 +18,18 @@ abstract class _SettingsStore with Store {
   _SettingsStore(
     this._settingsService,
     this._localAuthService,
-    ISpeechModelService speechModels,
-  ) : _speechModels = speechModels;
+    ISpeechModelService speechModels, {
+    ISpeechAccelerationService? acceleration,
+  }) : _speechModels = speechModels,
+       // ignore: prefer_initializing_formals
+       _acceleration = acceleration;
   // ignore: unused_element
   _SettingsStore.forTesting(this._settingsService, this._localAuthService)
-    : _speechModels = null;
+    : _speechModels = null,
+      _acceleration = null;
 
   final ISpeechModelService? _speechModels;
+  final ISpeechAccelerationService? _acceleration;
 
   final ISettingsService _settingsService;
   final ILocalAuthService _localAuthService;
@@ -45,6 +52,17 @@ abstract class _SettingsStore with Store {
   @observable
   bool isUpdatingLockApp = false;
 
+  @observable
+  bool gpuPreferred = true;
+
+  @observable
+  SpeechAccelerationStatus gpuStatus = const SpeechAccelerationStatus(
+    state: SpeechAccelerationState.checking,
+  );
+
+  @observable
+  bool isUpdatingGpu = false;
+
   @action
   Future<void> load() async {
     final savedTheme = _settingsService.getThemeMode();
@@ -58,6 +76,12 @@ abstract class _SettingsStore with Store {
     appLocale = _settingsService.getAppLocale();
     lockAppEnabled = _settingsService.getLockAppEnabled();
     lockAppAvailable = await _localAuthService.isAvailable();
+    gpuPreferred = _settingsService.getSpeechGpuPreferred();
+    final acceleration = _acceleration;
+    if (acceleration != null) {
+      await acceleration.initialize();
+      gpuStatus = await acceleration.status();
+    }
   }
 
   @action
@@ -92,6 +116,52 @@ abstract class _SettingsStore with Store {
   Future<void> setAppLocale(String locale) async {
     appLocale = locale;
     await _settingsService.setAppLocale(locale);
+  }
+
+  @action
+  Future<void> refreshGpuStatus({bool probe = false, bool refresh = false}) async {
+    final acceleration = _acceleration;
+    if (acceleration == null) return;
+    gpuStatus = await acceleration.status(probe: probe, refresh: refresh);
+  }
+
+  @action
+  Future<void> setGpuPreferred(bool preferred) async {
+    if (isUpdatingGpu) return;
+    isUpdatingGpu = true;
+    try {
+      await _settingsService.setSpeechGpuPreferred(preferred);
+      gpuPreferred = preferred;
+      final acceleration = _acceleration;
+      if (acceleration == null) return;
+      if (preferred) {
+        final current = await acceleration.status();
+        gpuStatus = current.state == SpeechAccelerationState.circuitOpen
+            ? await acceleration.resetCircuit()
+            : await acceleration.status(refresh: true, probe: true);
+      } else {
+        gpuStatus = await acceleration.status(refresh: true);
+      }
+    } finally {
+      isUpdatingGpu = false;
+    }
+  }
+
+  /// Explicit retry after a GPU failure or an interrupted attempt.
+  @action
+  Future<void> retryGpu() async {
+    if (isUpdatingGpu) return;
+    isUpdatingGpu = true;
+    try {
+      await _settingsService.setSpeechGpuPreferred(true);
+      gpuPreferred = true;
+      final acceleration = _acceleration;
+      if (acceleration != null) {
+        gpuStatus = await acceleration.resetCircuit();
+      }
+    } finally {
+      isUpdatingGpu = false;
+    }
   }
 
   /// Enables or disables the app lock.

@@ -312,7 +312,10 @@ Never download from an unpinned `main` revision. Never switch the active model s
 - `LocalInferenceQueue` serializes all native inference. One job at a time.
 - Foreground work (capture, transcription, formatting, user-submitted search) precedes background indexing. Run at most eight foreground jobs before yielding to background work.
 - Jobs must release native memory before releasing the queue lease. A cancelled queued job is skipped before acquiring native resources; a running job must check cancellation at safe boundaries.
-- Run native inference off the UI isolate. Use CPU-only inference. Llama.cpp sessions use four threads; the speech binding stays on its CPU path. Do not add a GPU/NPU backend without deliberate validation.
+- Run native inference off the UI isolate. CPU-only inference is the default.
+  Llama.cpp sessions use four threads and stay CPU-only. The single exception is
+  the optional Android speech Vulkan backend described below; never extend it to
+  embeddings or formatting without a separate validated decision.
 - On Apple, keep Whisper's GGML/GGUF and quantization implementation symbols
   private using the Podfile linker exclusion list in
   `app/native/whisper_private_symbols.txt`. Otherwise its different GGML version
@@ -334,6 +337,43 @@ Speech:
 - Select the model by explicit file path, not only by enum. Keep the model loaded only for one job.
 - Automatic language detection is the default. On Apple platforms, run the app-owned whisper.cpp language-detection pre-pass on at most the first 30 seconds, then free that context before loading the transcription model. Android may use native `auto`.
 - English-only models require explicit English and bypass language detection.
+- `LocalTranscriptionService.transcribeMeasured` exposes opt-in monotonic stage
+  timings without persisting or logging transcript content or paths. Its Whisper
+  request timing includes the plugin's own conversion, loading, inference, and
+  disposal; it is not an encoder-only metric. Reports also include the backend
+  that produced the accepted transcript and whether a CPU fallback happened.
+  Qualification evidence and reproduction instructions live in
+  `whisper-vulkan-validation.md`.
+
+#### Android speech Vulkan exception
+
+This is the only approved GPU exception. It is speech-only, Android-only, and
+must degrade to CPU without user data loss.
+
+- The app depends on the public `theolm/whisper_ggml` fork, pinned to an
+  immutable commit on `smartnotes/vulkan` (never a branch name). It ships the
+  unchanged API 24 CPU library for all ABIs plus a separate
+  `libwhisper_vulkan.so` for `arm64-v8a`, built against the API 28 Vulkan stub.
+  The CPU library must never resolve Vulkan 1.1 symbols.
+- Eligibility requires Android, arm64, API 28+, Vulkan 1.1 hardware support, a
+  successful native capability probe, the user preference enabled, and a closed
+  crash circuit.
+- `SpeechBackendPolicy` is pure and versioned. Small Q5_1 and Turbo Q5_0 may use
+  the GPU at any duration; Base Q8 only at or above the measured cutoff. English
+  variants and Large remain CPU until measured.
+- A recoverable GPU failure may retry exactly once on the CPU with the same
+  converted WAV and queue lease. Cancellation, invalid audio, missing/corrupt
+  models, and no-speech failures are never retried as backend failures.
+- Before native GPU work, write a minimal synchronous marker (model identity and
+  runtime identity only). Clear it after handled success or failure. An
+  uncleared marker on startup disables the GPU before journal recovery, and the
+  circuit stays open until the user explicitly retries or a new runtime identity
+  is shipped.
+- The Transcription settings screen exposes a single beta toggle and a retry
+  action. Settings must never show a GPU as active when the effective backend is
+  CPU.
+- Do not compare GPU and CPU transcripts automatically in production. Quality is
+  a release gate measured with approved public fixtures, not a runtime heuristic.
 
 Formatting:
 
