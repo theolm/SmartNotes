@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:smartnotes/core/utils/inference_trace.dart';
 import 'package:injectable/injectable.dart';
 import 'package:llamadart/llamadart.dart';
 import 'package:smartnotes/data/services/formatting_model_service.dart';
@@ -98,13 +99,20 @@ class LocalNoteProcessingService implements INoteProcessingService {
     AiAction? action,
   }) => _queue.run(() async {
     final metadataOnly = action == null;
+    InferenceTrace.event('formatting.job', {
+      'metadataOnly': metadataOnly,
+      'model': _models.activeModel?.id,
+    });
     final format = metadataOnly ? metadataResponseFormat : responseFormat;
     if (transcription.trim().isEmpty) {
       throw const AiFailure(AiFailureCode.noSpeech);
     }
     final String path;
     try {
-      path = await _models.requireModelPath();
+      path = await InferenceTrace.run(
+        'formatting.verify',
+        _models.requireModelPath,
+      );
     } on FormattingModelException catch (failure) {
       throw AiFailure(
         failure.problem == FormattingModelProblem.notReady
@@ -115,7 +123,7 @@ class LocalNoteProcessingService implements INoteProcessingService {
     final session = _session();
     try {
       try {
-        await session.load(path);
+        await InferenceTrace.run('formatting.load', () => session.load(path));
       } catch (_) {
         // The artifact may disappear after requireModelPath verified it.
         // Recheck without misclassifying native failures of a valid model.
@@ -160,7 +168,11 @@ Incorrect markdown opening for that example: # Tomorrow's conversation or **Plan
           text: jsonEncode({'transcription': transcription}),
         ),
       ];
-      final inputTokens = await session.countPrompt(messages, format);
+      final inputTokens = await InferenceTrace.run(
+        'formatting.tokenize',
+        () => session.countPrompt(messages, format),
+      );
+      InferenceTrace.event('formatting.tokens', {'count': inputTokens});
       if (inputTokens +
               LlamaFormattingSession.outputTokens +
               LlamaFormattingSession.safetyTokens >
@@ -168,7 +180,10 @@ Incorrect markdown opening for that example: # Tomorrow's conversation or **Plan
         // Never silently truncate or summarize a note to fit the phone budget.
         throw const AiFailure(AiFailureCode.noteTooLong);
       }
-      final result = await session.generate(messages, format);
+      final result = await InferenceTrace.run(
+        'formatting.generate',
+        () => session.generate(messages, format),
+      );
       if (result.finishReason != LlamaFinishReason.stop) {
         throw const AiFailure(AiFailureCode.incompleteNote);
       }
@@ -204,7 +219,7 @@ Incorrect markdown opening for that example: # Tomorrow's conversation or **Plan
       throw const AiFailure(AiFailureCode.unavailable);
     } finally {
       // This is awaited before the shared inference lease is released.
-      await session.dispose();
+      await InferenceTrace.run('formatting.dispose', session.dispose);
     }
   });
 

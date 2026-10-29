@@ -117,6 +117,60 @@ mixin _$SettingsStore on _SettingsStore, Store {
     });
   }
 
+  late final _$gpuPreferredAtom = Atom(
+    name: '_SettingsStore.gpuPreferred',
+    context: context,
+  );
+
+  @override
+  bool get gpuPreferred {
+    _$gpuPreferredAtom.reportRead();
+    return super.gpuPreferred;
+  }
+
+  @override
+  set gpuPreferred(bool value) {
+    _$gpuPreferredAtom.reportWrite(value, super.gpuPreferred, () {
+      super.gpuPreferred = value;
+    });
+  }
+
+  late final _$gpuStatusAtom = Atom(
+    name: '_SettingsStore.gpuStatus',
+    context: context,
+  );
+
+  @override
+  SpeechAccelerationStatus get gpuStatus {
+    _$gpuStatusAtom.reportRead();
+    return super.gpuStatus;
+  }
+
+  @override
+  set gpuStatus(SpeechAccelerationStatus value) {
+    _$gpuStatusAtom.reportWrite(value, super.gpuStatus, () {
+      super.gpuStatus = value;
+    });
+  }
+
+  late final _$isUpdatingGpuAtom = Atom(
+    name: '_SettingsStore.isUpdatingGpu',
+    context: context,
+  );
+
+  @override
+  bool get isUpdatingGpu {
+    _$isUpdatingGpuAtom.reportRead();
+    return super.isUpdatingGpu;
+  }
+
+  @override
+  set isUpdatingGpu(bool value) {
+    _$isUpdatingGpuAtom.reportWrite(value, super.isUpdatingGpu, () {
+      super.isUpdatingGpu = value;
+    });
+  }
+
   late final _$loadAsyncAction = AsyncAction(
     '_SettingsStore.load',
     context: context,
@@ -159,6 +213,40 @@ mixin _$SettingsStore on _SettingsStore, Store {
     return _$setAppLocaleAsyncAction.run(() => super.setAppLocale(locale));
   }
 
+  late final _$refreshGpuStatusAsyncAction = AsyncAction(
+    '_SettingsStore.refreshGpuStatus',
+    context: context,
+  );
+
+  @override
+  Future<void> refreshGpuStatus({bool probe = false, bool refresh = false}) {
+    return _$refreshGpuStatusAsyncAction.run(
+      () => super.refreshGpuStatus(probe: probe, refresh: refresh),
+    );
+  }
+
+  late final _$setGpuPreferredAsyncAction = AsyncAction(
+    '_SettingsStore.setGpuPreferred',
+    context: context,
+  );
+
+  @override
+  Future<void> setGpuPreferred(bool preferred) {
+    return _$setGpuPreferredAsyncAction.run(
+      () => super.setGpuPreferred(preferred),
+    );
+  }
+
+  late final _$retryGpuAsyncAction = AsyncAction(
+    '_SettingsStore.retryGpu',
+    context: context,
+  );
+
+  @override
+  Future<void> retryGpu() {
+    return _$retryGpuAsyncAction.run(() => super.retryGpu());
+  }
+
   late final _$setLockAppEnabledAsyncAction = AsyncAction(
     '_SettingsStore.setLockAppEnabled',
     context: context,
@@ -179,7 +267,10 @@ audioLanguage: ${audioLanguage},
 appLocale: ${appLocale},
 lockAppEnabled: ${lockAppEnabled},
 lockAppAvailable: ${lockAppAvailable},
-isUpdatingLockApp: ${isUpdatingLockApp}
+isUpdatingLockApp: ${isUpdatingLockApp},
+gpuPreferred: ${gpuPreferred},
+gpuStatus: ${gpuStatus},
+isUpdatingGpu: ${isUpdatingGpu}
     ''';
   }
 }

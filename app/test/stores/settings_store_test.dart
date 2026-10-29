@@ -18,6 +18,7 @@ void main() {
     mockService = MockSettingsService();
     mockLocalAuthService = MockLocalAuthService();
     when(() => mockService.getLockAppEnabled()).thenReturn(false);
+    when(() => mockService.getSpeechGpuPreferred()).thenReturn(true);
     when(
       () => mockLocalAuthService.isAvailable(),
     ).thenAnswer((_) async => true);

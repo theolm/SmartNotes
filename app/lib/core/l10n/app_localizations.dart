@@ -2709,6 +2709,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlock SmartNotes'**
   String get unlockReason;
+
+  /// No description provided for @gpuAccelerationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU acceleration (beta)'**
+  String get gpuAccelerationTitle;
+
+  /// No description provided for @gpuAccelerationEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the phone GPU when available and falls back to the CPU. Experimental on some devices.'**
+  String get gpuAccelerationEnabled;
+
+  /// No description provided for @gpuAccelerationDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Always uses the CPU.'**
+  String get gpuAccelerationDisabled;
+
+  /// No description provided for @gpuAccelerationUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this device.'**
+  String get gpuAccelerationUnsupported;
+
+  /// No description provided for @gpuAccelerationChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking GPU support…'**
+  String get gpuAccelerationChecking;
+
+  /// No description provided for @gpuAccelerationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The GPU could not be initialized. Transcription uses the CPU.'**
+  String get gpuAccelerationFailed;
+
+  /// No description provided for @gpuAccelerationCircuitOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Turned off after a GPU failure.'**
+  String get gpuAccelerationCircuitOpen;
+
+  /// No description provided for @gpuAccelerationTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get gpuAccelerationTryAgain;
+
+  /// No description provided for @gpuSummaryGpu.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU'**
+  String get gpuSummaryGpu;
+
+  /// No description provided for @gpuSummaryCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'CPU'**
+  String get gpuSummaryCpu;
 }
 
 class _AppLocalizationsDelegate

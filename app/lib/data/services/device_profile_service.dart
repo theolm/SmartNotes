@@ -18,6 +18,13 @@ class DeviceProfileService {
         is64Bit: data?['is64Bit'] == true,
         processors: data?['processors'] as int?,
         soc: data?['soc'] as String?,
+        sdkInt: data?['sdkInt'] as int?,
+        supportedAbis:
+            (data?['abis'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList(growable: false) ??
+            const [],
+        hasVulkan11: data?['vulkan11'] == true,
       );
     } on Exception {
       return const DeviceProfile();

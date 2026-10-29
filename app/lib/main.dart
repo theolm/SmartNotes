@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smartnotes/core/utils/inference_trace.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:smartnotes/core/di/injection.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/routes/app_route.dart';
+import 'package:smartnotes/domain/services/i_speech_acceleration_service.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/app_store.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -18,6 +20,7 @@ import 'package:smartnotes/presentation/widgets/app_update_widgets.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  InferenceTrace.event('app.start');
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(
       ['EmbeddingGemma 300M', 'Gemma 3 4B IT'],
@@ -40,6 +43,15 @@ void main() async {
 
   final appStore = getIt<AppStore>();
   await appStore.initialize();
+
+  // Resolve an interrupted GPU attempt before JournalLifecycle recovers
+  // entries; recovery must never start on the backend that just crashed.
+  try {
+    await getIt<ISpeechAccelerationService>().initialize();
+  } catch (_) {
+    // A broken marker must not block startup; transcription stays on CPU
+    // until the marker is repaired or explicitly retried.
+  }
 
   final settingsStore = getIt<SettingsStore>();
   try {

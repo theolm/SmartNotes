@@ -7,12 +7,20 @@ class DeviceProfile {
     this.is64Bit = false,
     this.processors,
     this.soc,
+    this.sdkInt,
+    this.supportedAbis = const [],
+    this.hasVulkan11 = false,
   });
   final int? memoryBytes;
   final bool lowMemory;
   final bool is64Bit;
   final int? processors;
   final String? soc;
+  final int? sdkInt;
+  final List<String> supportedAbis;
+  final bool hasVulkan11;
+
+  bool get supportsArm64 => supportedAbis.contains('arm64-v8a');
 }
 
 enum RecommendationReason { unknown, economical, balanced, powerful }
@@ -58,27 +66,27 @@ class SpeechRecommendationPolicy {
     final english =
         language != null &&
         RegExp(r'^en(?:[-_]|$)', caseSensitive: false).hasMatch(language);
-    if (profile.lowMemory || !profile.is64Bit || memory < balancedMemoryBytes) {
+    if (!profile.is64Bit || profile.lowMemory || memory < balancedMemoryBytes) {
       return SpeechRecommendation(
         fallback,
         RecommendationReason.economical,
       );
     }
-    final powerful =
-        memory >= powerfulMemoryBytes &&
-        validatedSocProfiles.contains(profile.soc);
-    final candidate = powerful
-        ? (english ? SpeechModel.mediumEnglish : SpeechModel.turbo)
-        : (english ? SpeechModel.smallEnglish : SpeechModel.small);
-    if (!candidate.supports(language)) {
-      return const SpeechRecommendation(
-        SpeechModel.turbo,
-        RecommendationReason.balanced,
+    final socQualified =
+        profile.soc != null && validatedSocProfiles.contains(profile.soc);
+    if (socQualified && memory >= powerfulMemoryBytes) {
+      return SpeechRecommendation(
+        english ? SpeechModel.mediumEnglish : SpeechModel.turbo,
+        RecommendationReason.powerful,
       );
     }
     return SpeechRecommendation(
-      candidate,
-      powerful ? RecommendationReason.powerful : RecommendationReason.balanced,
+      english
+          ? SpeechModel.smallEnglish
+          : SpeechModel.small.supports(language)
+          ? SpeechModel.small
+          : SpeechModel.turbo,
+      RecommendationReason.balanced,
     );
   }
 }

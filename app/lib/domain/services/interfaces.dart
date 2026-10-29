@@ -11,3 +11,4 @@ export 'package:smartnotes/domain/services/i_journal_entry_service.dart';
 export 'package:smartnotes/domain/services/i_local_auth_service.dart';
 export 'package:smartnotes/domain/services/i_note_processing_service.dart';
 export 'package:smartnotes/domain/services/i_settings_service.dart';
+export 'package:smartnotes/domain/services/i_speech_acceleration_service.dart';

@@ -8,6 +8,7 @@ import 'package:smartnotes/core/routes/app_route.gr.dart';
 import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/domain/services/i_speech_model_service.dart';
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart';
+import 'package:smartnotes/domain/entities/speech_acceleration.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/screens/settings/local_data_store.dart';
 import 'package:smartnotes/presentation/screens/settings/embedding_models_store.dart';
@@ -36,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     unawaited(data.load());
     unawaited(embeddings.load());
+    // The summary must reflect the effective backend, not the preference.
+    unawaited(store.refreshGpuStatus(probe: true));
   }
 
   Future<void> _open(PageRouteInfo route) async {
@@ -110,8 +113,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _destination(
                     l10n.transcriptionSettingsTitle,
                     speech.configuredModelId == null
-                        ? language
-                        : '$language · ${speech.model.name}',
+                        ? '$language · ${gpuLabel(l10n, store)}'
+                        : '$language · ${speech.model.name} · ${gpuLabel(l10n, store)}',
                     () => _open(SpeechModelsRoute()),
                   ),
                   _destination(
@@ -210,4 +213,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       );
+}
+
+String gpuLabel(AppLocalizations l10n, SettingsStore store) {
+  final state = store.gpuStatus.state;
+  final effective =
+      store.gpuPreferred && state == SpeechAccelerationState.available;
+  return effective ? l10n.gpuSummaryGpu : l10n.gpuSummaryCpu;
 }

@@ -14,6 +14,12 @@ The workflow runs when a semver tag is pushed and produces:
 Android APKs are split per ABI to keep each download small. The release is only
 created after all build jobs succeed.
 
+The arm64 APK also contains the optional `libwhisper_vulkan.so` for the beta GPU
+speech path (about 32 MB uncompressed). The other ABI APKs stay CPU-only. Verify
+that the Vulkan library is present only in the arm64 APK, that both libraries
+declare 16 KB page alignment, and that the size increase is reported in the
+release notes before publishing.
+
 ## In-app update contract
 
 The app queries the public GitHub `releases/latest` endpoint once per process

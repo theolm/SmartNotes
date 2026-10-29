@@ -108,6 +108,7 @@ class SharedPreferencesSettingsService implements ISettingsService {
   static const _audioLanguageKey = 'audioLanguage';
   static const _appLocaleKey = 'appLocale';
   static const _lockAppKey = 'lockAppEnabled';
+  static const _speechGpuPreferredKey = 'speechGpuPreferred';
 
   @override
   String? getThemeMode() => _prefs.getString(_themeModeKey);
@@ -142,6 +143,17 @@ class SharedPreferencesSettingsService implements ISettingsService {
   @override
   Future<void> setAppLocale(String locale) async {
     await _prefs.setString(_appLocaleKey, locale);
+  }
+
+  @override
+  bool getSpeechGpuPreferred() =>
+      _prefs.getBool(_speechGpuPreferredKey) ?? true;
+
+  @override
+  Future<void> setSpeechGpuPreferred(bool preferred) async {
+    if (!await _prefs.setBool(_speechGpuPreferredKey, preferred)) {
+      throw StateError('Could not persist the GPU transcription preference.');
+    }
   }
 
   @override
