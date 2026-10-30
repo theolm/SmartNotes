@@ -158,9 +158,8 @@ Keep all source facts in the body; metadata must not be the only place containin
 Follow only the selected presentation preset below. Do not default to a bullet-point summary.
 Fix grammar and punctuation.
 Presentation: ${_instruction(action)} Write the markdown body in the same language as the transcription; never translate it.
-Example of the selected preset only; never copy its facts or language:
-Source: {"transcription":"I want to speak with Ana tomorrow. I will not travel on Friday."}
-Output: ${jsonEncode({'title': 'Tomorrow’s conversation', 'subTitle': 'Plans to speak with Ana.', 'markdown': _exampleBody(action)})}'''}''',
+Language is determined only by the source transcription, not by these English instructions, JSON field names, the preset name, or the app language.
+Preserve the language of each source passage, including mixed-language notes. Changing the presentation never authorizes translation.'''}''',
         ),
         // JSON quoting separates untrusted source from the system instructions.
         LlamaChatMessage.fromText(
@@ -281,27 +280,12 @@ Output: ${jsonEncode({'title': 'Tomorrow’s conversation', 'subTitle': 'Plans t
     AiAction.journalEntry =>
       'Write connected first-person prose in paragraphs using only the source thoughts. Preserve the source details and emotional tone; do not invent reflections. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.keyPoints =>
-      'Write concise bullet points, each starting with "- ", containing the source key points. Preserve facts and qualifications, including negation and uncertainty. No headings or introductory labels.',
+      'Extract concise bullet points, each starting with "- ", by selecting and shortening phrases from the source. Reuse the source wording and keep every bullet in the language of its source passage. Do not translate into English or any other language. Preserve facts and qualifications, including negation and uncertainty. No headings or introductory labels.',
     AiAction.formalSummary =>
       'Write neutral, formal summary prose in connected paragraphs. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.casualRecap =>
       'Write relaxed, conversational prose in connected paragraphs, preserving the source meaning and details. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.faithfulTranscription =>
       'Keep the original wording, order, point of view and all details; only fix punctuation and grammar. Do not summarize, paraphrase, reorganize or turn prose into a list. Preserve existing source lists rather than inventing new ones. Already correct text must remain unchanged. Do not add headings, labels or an introduction.',
-  };
-
-  // Each preset demonstrates the same source, without a shared list-shaped bias.
-  String _exampleBody(AiAction action) => switch (action) {
-    AiAction.organizedNote =>
-      'I want to speak with Ana tomorrow. I will not travel on Friday.',
-    AiAction.journalEntry =>
-      'I want to speak with Ana tomorrow. I will not travel on Friday.',
-    AiAction.keyPoints => '- Speak with Ana tomorrow.\n- No travel on Friday.',
-    AiAction.formalSummary =>
-      'The author wants to speak with Ana tomorrow and will not travel on Friday.',
-    AiAction.casualRecap =>
-      'I want to talk with Ana tomorrow. I won’t be traveling on Friday.',
-    AiAction.faithfulTranscription =>
-      'I want to speak with Ana tomorrow. I will not travel on Friday.',
   };
 }

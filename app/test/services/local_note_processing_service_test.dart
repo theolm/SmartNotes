@@ -306,30 +306,23 @@ void main() {
           contains('Do not repeat title or subTitle'),
         );
         final prompt = session.messages!.first.content;
-        expect(prompt, contains('Example of the selected preset only'));
-        final example =
-            jsonDecode(prompt.split('Output: ').last) as Map<String, dynamic>;
-        final body = example['markdown'] as String;
-        expect(
-          example.keys,
-          unorderedEquals(['title', 'subTitle', 'markdown']),
-        );
-        expect(body, contains('Ana'));
-        expect(body, contains('tomorrow'));
-        expect(body.toLowerCase(), contains('friday'));
-        expect(body.toLowerCase(), matches(r'not|no |won’t'));
+        // No sample output should prime small models to use English or lists.
+        expect(prompt, isNot(contains('Output:')));
+        expect(prompt, isNot(contains('"markdown":')));
+        expect(prompt, isNot(contains('Speak with Ana tomorrow')));
+        expect(prompt, contains('not by these English instructions'));
+        expect(prompt, contains('including mixed-language notes'));
         if (action == AiAction.keyPoints) {
-          expect(body.split('\n'), everyElement(startsWith('- ')));
           expect(prompt, contains('each starting with "- "'));
-        } else {
           expect(
-            RegExp(r'^\s*(?:[-*+]|\d+[.)])\s', multiLine: true).hasMatch(body),
-            false,
+            prompt,
+            contains('keep every bullet in the language of its source passage'),
           );
+          expect(prompt, contains('Reuse the source wording'));
+          expect(prompt, contains('Do not translate into English'));
         }
         if (action == AiAction.journalEntry) {
           expect(prompt, contains('first-person prose in paragraphs'));
-          expect(body, startsWith('I '));
         }
         switch (action) {
           case AiAction.journalEntry:
@@ -343,16 +336,48 @@ void main() {
               contains('Do not summarize, paraphrase, reorganize'),
             );
             expect(prompt, contains('Preserve existing source lists'));
-            expect(
-              body,
-              'I want to speak with Ana tomorrow. I will not travel on Friday.',
-            );
           case AiAction.organizedNote:
             expect(prompt, contains('section headings only where useful'));
           case AiAction.keyPoints:
             break;
         }
         expect(session.disposed, true);
+      },
+    );
+  }
+  for (final source in [
+    'Não vou viajar amanhã. Talvez eu envie 3 páginas na sexta-feira.',
+    'No voy a viajar mañana. Quizás envíe 3 páginas el viernes.',
+    'Je ne voyagerai pas demain. J’enverrai peut-être 3 pages vendredi.',
+    '明日は旅行しません。金曜日に3ページ送るかもしれません。',
+    'Não vou viajar amanhã. I might send 3 pages on Friday.',
+  ]) {
+    test(
+      'key points uses the exact source as its language authority: $source',
+      () async {
+        await service.formatTranscription(
+          action: AiAction.keyPoints,
+          transcription: source,
+        );
+        expect(session.messages, hasLength(2));
+        expect(jsonDecode(session.messages!.last.content), {
+          'transcription': source,
+        });
+        final prompt = session.messages!.first.content;
+        expect(
+          prompt,
+          contains('selecting and shortening phrases from the source'),
+        );
+        expect(
+          prompt,
+          contains('Preserve the language of each source passage'),
+        );
+        expect(
+          prompt,
+          contains('Changing the presentation never authorizes translation'),
+        );
+        expect(prompt, isNot(contains('"markdown":')));
+        expect(session.format, LocalNoteProcessingService.responseFormat);
       },
     );
   }

@@ -175,6 +175,47 @@ void main() {
       expect(note.markdown.trim(), source);
     }, skip: path.isEmpty);
   }
+  for (final fixture in [
+    (
+      language: 'Portuguese',
+      source:
+          'Não vou viajar amanhã. Talvez eu envie 3 páginas na sexta-feira.',
+      requiredWords: ['não', 'amanhã', 'talvez', '3', 'páginas', 'sexta'],
+    ),
+    (
+      language: 'Spanish',
+      source: 'No voy a viajar mañana. Quizás envíe 3 páginas el viernes.',
+      requiredWords: ['no', 'mañana', 'quizás', '3', 'páginas', 'viernes'],
+    ),
+    (
+      language: 'French',
+      source:
+          'Je ne voyagerai pas demain. J’enverrai peut-être 3 pages vendredi.',
+      requiredWords: ['pas', 'demain', 'peut-être', '3', 'pages', 'vendredi'],
+    ),
+    (
+      language: 'mixed Portuguese and English',
+      source: 'Não vou viajar amanhã. I might send 3 pages on Friday.',
+      requiredWords: ['não', 'amanhã', 'might', '3', 'pages', 'friday'],
+    ),
+  ]) {
+    testWidgets(
+      'real ${selected.id} key points preserves ${fixture.language}',
+      (tester) async {
+        final note = await service.formatTranscription(
+          action: AiAction.keyPoints,
+          transcription: fixture.source,
+        );
+        _expectPresentation(AiAction.keyPoints, note.markdown);
+        for (final word in fixture.requiredWords) {
+          expect(note.markdown.toLowerCase(), contains(word));
+        }
+        expect(note.transcription, fixture.source);
+        expect(note.markdown, isNot(contains('<think>')));
+      },
+      skip: path.isEmpty,
+    );
+  }
   testWidgets(
     'real ${selected.id} faithful preset preserves existing lists and details',
     (
