@@ -11,6 +11,8 @@ _Avoid_: Document, message, account-owned note.
 
 **Transcription**: The original speech represented as text on the device, without uploading audio. Once obtained, it is retained independently of formatting so a retry need not transcribe the recording again.
 
+**Detected language**: The best-effort ISO 639-1 code of the language spoken in a recording, captured when the formatting model generates the initial title and subtitle. It is optional entry metadata: no entry needs it to be read, edited, searched, backed up, or restored. It is distinct from the audio-language setting that chooses the speech model's expected language.
+
 **Typed capture**: A secondary capture path for quiet or private moments. Optional title and subtitle precede the body editor; the first saved body is retained in the `transcription` field and presented as Original text. Later edits and accepted AI transformations do not overwrite it. Typing needs no recording, model, or network access; initial onboarding requirements remain unchanged.
 
 **Speech model**: Downloaded recognition weights that enable offline transcription for supported spoken languages. Several may be installed; one compatible model must be active before completing setup.
@@ -19,7 +21,7 @@ _Avoid_: Document, message, account-owned note.
 
 **Recommended speech model**: The catalog model suggested from the chosen audio language and an estimate of device capability. It guides selection but never becomes active without an explicit choice.
 
-**Formatting model**: Optional downloaded language-model weights that generate an initial title and subtitle in the transcription's language, and organize or rewrite a note on the device when requested by the journaler. Several may be installed; one must be selected and available before generation can run. Missing weights or failed metadata generation never prevent a completed transcription.
+**Formatting model**: Optional downloaded language-model weights that generate an initial title and subtitle in the transcription's language, extract the detected language, and organize or rewrite a note on the device when requested by the journaler. Several may be installed; one must be selected and available before generation can run. Missing weights or failed metadata generation never prevent a completed transcription.
 
 **Active formatting model**: The installed formatting model explicitly selected for AI actions. A recommendation or an additional download does not replace this choice. Removing it requires selecting another model first.
 

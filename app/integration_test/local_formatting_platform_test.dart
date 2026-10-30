@@ -163,6 +163,7 @@ void main() {
     expect(metadata, isNotNull);
     expect(metadata!.title, isNotEmpty);
     expect(metadata.subTitle, isNotEmpty);
+    expect(metadata.languageCode, 'pt');
     expect(
       '${metadata.title} ${metadata.subTitle}',
       isNot(contains('<think>')),

@@ -203,24 +203,50 @@ void main() {
     });
   }
   test(
-    'metadata uses a two-field schema and the transcription language',
+    'metadata uses a three-field schema and the transcription language',
     () async {
       const source = 'Quero conversar com Ana amanhã.';
       session.result = const LlamaCompletion(
-        text: '{"title":"Conversa com Ana","subTitle":"Planos para amanhã."}',
+        text:
+            '{"title":"Conversa com Ana","subTitle":"Planos para amanhã.","languageCode":"pt"}',
         finishReason: LlamaFinishReason.stop,
       );
       final metadata = await service.generateMetadata(source);
       expect(metadata, (
         title: 'Conversa com Ana',
         subTitle: 'Planos para amanhã.',
+        languageCode: 'pt',
       ));
       expect(session.format, LocalNoteProcessingService.metadataResponseFormat);
+      final jsonSchema =
+          LocalNoteProcessingService.metadataResponseFormat['json_schema']
+              as Map<String, dynamic>;
+      final requiredFields =
+          (jsonSchema['schema'] as Map<String, dynamic>)['required']
+              as List<dynamic>;
+      expect(
+        requiredFields,
+        containsAll(['title', 'subTitle', 'languageCode']),
+      );
       expect(
         session.messages!.first.content,
         contains('same language as the transcription'),
       );
       expect(session.messages!.first.content, contains('Never translate'));
+      expect(
+        session.messages!.first.content,
+        contains('lowercase ISO 639-1 code'),
+      );
+      expect(
+        session.messages!.first.content,
+        contains('Determine it from the source transcription alone'),
+      );
+      expect(
+        session.messages!.first.content,
+        contains(
+          'languageCode does not change the language of title and subTitle',
+        ),
+      );
       expect(
         jsonDecode(session.messages!.last.content)['transcription'],
         source,
@@ -229,6 +255,45 @@ void main() {
       verifyZeroInteractions(transcription);
     },
   );
+  for (final code in ['PT', ' pt-BR ', 'pt_BR', 'Pt-pt']) {
+    test('normalizes detected language code: $code', () async {
+      session.result = LlamaCompletion(
+        text: jsonEncode({
+          'title': 'Conversa com Ana',
+          'subTitle': 'Planos para amanhã.',
+          'languageCode': code,
+        }),
+        finishReason: LlamaFinishReason.stop,
+      );
+      expect((await service.generateMetadata('Uma nota.'))?.languageCode, 'pt');
+    });
+  }
+  for (final code in <Object?>['', 'Portuguese', 'p', 'ptt', 3, null]) {
+    test('keeps metadata when the language is unavailable: $code', () async {
+      session.result = LlamaCompletion(
+        text: jsonEncode({
+          'title': 'Conversa com Ana',
+          'subTitle': 'Planos para amanhã.',
+          'languageCode': code,
+        }),
+        finishReason: LlamaFinishReason.stop,
+      );
+      final metadata = await service.generateMetadata('Uma nota.');
+      expect(metadata, isNotNull);
+      expect(metadata!.title, 'Conversa com Ana');
+      expect(metadata.subTitle, 'Planos para amanhã.');
+      expect(metadata.languageCode, isNull);
+    });
+  }
+  test('metadata without a language field is still accepted', () async {
+    session.result = const LlamaCompletion(
+      text: '{"title":"Title","subTitle":"Summary"}',
+      finishReason: LlamaFinishReason.stop,
+    );
+    final metadata = await service.generateMetadata('Uma nota.');
+    expect(metadata?.title, 'Title');
+    expect(metadata?.languageCode, isNull);
+  });
   test('metadata skips inference when no model is selected', () async {
     models.ready = false;
     expect(await service.generateMetadata('Uma nota.'), isNull);

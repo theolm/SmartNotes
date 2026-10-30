@@ -5,6 +5,9 @@ import 'enums/entry_status.dart';
 part 'journal_entry.freezed.dart';
 part 'journal_entry.g.dart';
 
+/// [languageCode] is the best-effort ISO 639-1 code of the recorded speech,
+/// written with generated metadata. It is null for typed entries, entries
+/// without a ready formatting model, and failed detection.
 @freezed
 abstract class JournalEntry with _$JournalEntry {
   const factory JournalEntry({

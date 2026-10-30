@@ -5,9 +5,11 @@ abstract class INoteProcessingService {
   Future<String> transcribe(String audioPath);
 
   /// Returns null when no selected, installed formatting model is ready.
-  Future<({String title, String subTitle})?> generateMetadata(
-    String transcription,
-  );
+  ///
+  /// [languageCode] is the best-effort ISO 639-1 code of the spoken language,
+  /// or null when it could not be determined.
+  Future<({String title, String subTitle, String? languageCode})?>
+  generateMetadata(String transcription);
 
   Future<ProcessedAudio> formatTranscription({
     required AiAction action,
