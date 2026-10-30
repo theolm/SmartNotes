@@ -94,14 +94,14 @@ flutter:
       fonts:
         - asset: assets/fonts/ArchivoBlack-Regular.ttf
 
-# Only the GGUF runtime is needed; do not ship LiteRT-LM or Vulkan modules.
+# GGUF only. Vulkan is opt-in per formatting profile; CPU remains bundled.
 hooks:
   user_defines:
     llamadart:
       llamadart_native_runtimes: [llama_cpp]
       llamadart_native_backends:
         platforms:
-          android: [cpu]
+          android: [cpu, vulkan]
 
 flutter_launcher_icons:
   android: true

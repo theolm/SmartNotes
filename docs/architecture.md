@@ -313,9 +313,10 @@ Never download from an unpinned `main` revision. Never switch the active model s
 - Foreground work (capture, transcription, formatting, user-submitted search) precedes background indexing. Run at most eight foreground jobs before yielding to background work.
 - Jobs must release native memory before releasing the queue lease. A cancelled queued job is skipped before acquiring native resources; a running job must check cancellation at safe boundaries.
 - Run native inference off the UI isolate. CPU-only inference is the default.
-  Llama.cpp sessions use four threads and stay CPU-only. The single exception is
-  the optional Android speech Vulkan backend described below; never extend it to
-  embeddings or formatting without a separate validated decision.
+  Llama.cpp CPU sessions use four threads. GPU assistance is limited to the
+  optional Android speech Vulkan backend and the release-qualified formatting
+  profiles described below. Embeddings stay CPU-only; extending GPU use to them
+  requires a separate validated decision.
 - On Apple, keep Whisper's GGML/GGUF and quantization implementation symbols
   private using the Podfile linker exclusion list in
   `app/native/whisper_private_symbols.txt`. Otherwise its different GGML version
@@ -347,8 +348,8 @@ Speech:
 
 #### Android speech Vulkan exception
 
-This is the only approved GPU exception. It is speech-only, Android-only, and
-must degrade to CPU without user data loss.
+This is a speech-only, Android-only exception and must degrade to CPU without
+user data loss.
 
 - The app depends on the public `theolm/whisper_ggml` fork, pinned to an
   immutable commit on `smartnotes/vulkan` (never a branch name). It ships the
@@ -374,6 +375,43 @@ must degrade to CPU without user data loss.
   CPU.
 - Do not compare GPU and CPU transcripts automatically in production. Quality is
   a release gate measured with approved public fixtures, not a runtime heuristic.
+
+#### Formatting GPU acceleration
+
+Formatting may use llama.cpp Metal on Apple and Vulkan on Android, only through
+a release-qualified profile. Qualification is per exact hardware, model artifact
+and workload; a GPU being present is never enough. `docs/formatting-gpu-validation.md`
+records the evidence, reproduction, limits and rollback.
+
+- `FormattingBackendPolicy` is pure and versioned. It receives the stable
+  hardware identity, model ID, workload (metadata or organization), physical and
+  available memory, the user preference and the circuit state. Unlisted,
+  unknown, low-memory or unqualified combinations use CPU.
+- The GPU path packages the llama.cpp Vulkan module alongside CPU on Android
+  and uses the Apple Metal runtime. `ComputeDevice.gpu` is explicit; a load
+  never silently downgrades. After loading, the session must report the expected
+  backend and a positive resolved GPU layer count or it is treated as a backend
+  failure.
+- Keep `ModelParams.microBatchSize` unset on Android Vulkan. The pinned runtime
+  then caps text-prefill micro-batches to mitigate wrong output on affected
+  drivers. Speculative decoding stays disabled. Do not copy Whisper-specific
+  FP16, Flash Attention or host-memory tuning into llama.cpp.
+- Preserve the CPU session unchanged: explicit CPU device, zero GPU layers and
+  four threads. Context size, output reserve, chat template, sampling, JSON
+  schema and preview/acceptance semantics are identical on both backends.
+- Only a verified backend-unavailable failure may retry once. The GPU session
+  must be fully disposed, and any cleanup failure blocks every later native job
+  until restart. Cancellation, oversized input, invalid JSON, model corruption
+  and application failures never trigger a backend retry.
+- Formatting has its own persisted preference and its own crash marker
+  (`formatting-gpu-circuit.json`) containing only model, profile and runtime
+  identity. An interrupted attempt disables formatting GPU before journal
+  recovery. Neither preference nor reset affects speech, and vice versa.
+- Settings expose a beta toggle, the effective eligibility reason, a retry
+  action and the backend of the last completed request, including CPU fallback.
+  An enabled preference never reads as active GPU use.
+- Do not compare CPU and GPU output automatically in production. Quality,
+  latency and memory are release gates measured with approved fixtures.
 
 Formatting:
 

@@ -2,6 +2,26 @@ import Cocoa
 import FlutterMacOS
 import UserNotifications
 
+private func formattingChip() -> String {
+  var size = 0
+  guard sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0 else { return "" }
+  var bytes = [CChar](repeating: 0, count: size)
+  guard sysctlbyname("machdep.cpu.brand_string", &bytes, &size, nil, 0) == 0 else { return "" }
+  return String(cString: bytes)
+}
+
+private func formattingAvailableMemory() -> UInt64? {
+  var stats = vm_statistics64()
+  var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
+  let status = withUnsafeMutablePointer(to: &stats) { pointer in
+    pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+      host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+    }
+  }
+  guard status == KERN_SUCCESS else { return nil }
+  return (UInt64(stats.free_count) + UInt64(stats.inactive_count)) * UInt64(vm_kernel_page_size)
+}
+
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -23,6 +43,9 @@ class MainFlutterWindow: NSWindow {
         switch call.method {
         case "profile":
           result(["memoryBytes": ProcessInfo.processInfo.physicalMemory,
+                  "availableMemoryBytes": formattingAvailableMemory() ?? 0,
+                  "hardwareIdentity": "macos:\(formattingChip())",
+                  "runtimeIdentity": "macos:\(ProcessInfo.processInfo.operatingSystemVersionString)",
                   "is64Bit": MemoryLayout<Int>.size == 8,
                   "processors": ProcessInfo.processInfo.activeProcessorCount])
         case "freeStorage":

@@ -9,6 +9,49 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get formattingGpuTitle => 'GPU acceleration (beta)';
+
+  @override
+  String get formattingGpuDisabled =>
+      'AI organization runs on the CPU. Changes apply to the next request.';
+
+  @override
+  String get formattingGpuUnqualified =>
+      'This model and device have not been validated for GPU organization. Using CPU.';
+
+  @override
+  String get formattingGpuMemory =>
+      'Not enough available memory for this GPU profile. Using CPU.';
+
+  @override
+  String get formattingGpuInterrupted =>
+      'GPU acceleration is paused after an interrupted request or runtime failure. Using CPU; restart the app if cleanup failed.';
+
+  @override
+  String get formattingGpuEligible =>
+      'GPU is eligible for the next organization request. Short title generation may still use CPU.';
+
+  @override
+  String get formattingGpuRetry => 'Retry GPU eligibility';
+
+  @override
+  String get formattingGpuFallback =>
+      'Last completed request: CPU after GPU fallback.';
+
+  @override
+  String get formattingGpuLastCpu => 'Last completed request: CPU.';
+
+  @override
+  String get formattingGpuLastVulkan => 'Last completed request: Vulkan GPU.';
+
+  @override
+  String get formattingGpuLastMetal => 'Last completed request: Metal GPU.';
+
+  @override
+  String get formattingGpuSettingsError =>
+      'Could not save the GPU setting. Please try again.';
+
+  @override
   String settingsAppVersion(String version) {
     return 'Version $version';
   }

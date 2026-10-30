@@ -10,6 +10,8 @@ import 'package:smartnotes/domain/entities/device_profile.dart';
 import 'package:smartnotes/domain/entities/formatting_model.dart';
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart';
 import 'package:smartnotes/domain/failures/model_download_cancelled.dart';
+import 'package:smartnotes/domain/entities/formatting_acceleration.dart';
+import 'package:smartnotes/domain/services/i_formatting_acceleration_service.dart';
 
 part 'formatting_models_store.g.dart';
 
@@ -24,7 +26,10 @@ enum FormattingDownloadState {
   cancelled,
 }
 
-@singleton
+Future<void> disposeFormattingModelsStore(FormattingModelsStore store) =>
+    store.dispose();
+
+@Singleton(dispose: disposeFormattingModelsStore)
 // ignore: library_private_types_in_public_api
 class FormattingModelsStore = _FormattingModelsStore
     with _$FormattingModelsStore;
@@ -34,7 +39,82 @@ abstract class _FormattingModelsStore with Store {
     this._models,
     this._device, {
     ModelDownloadsStore? downloads,
-  }) : downloads = downloads ?? ModelDownloadsStore.unsupported();
+    IFormattingAccelerationService? acceleration,
+  }) : downloads = downloads ?? ModelDownloadsStore.unsupported(),
+       // Public injection argument; the field remains private.
+       // ignore: prefer_initializing_formals
+       _acceleration = acceleration;
+  final IFormattingAccelerationService? _acceleration;
+  StreamSubscription<FormattingAccelerationStatus>? _gpuSubscription;
+  int _gpuRevision = 0;
+
+  @observable
+  FormattingAccelerationStatus gpu = const FormattingAccelerationStatus();
+  @observable
+  FormattingBackendReason gpuReason = FormattingBackendReason.userDisabled;
+  @observable
+  bool gpuSaving = false;
+  @observable
+  bool gpuError = false;
+
+  Future<void> _refreshGpu() async {
+    final service = _acceleration;
+    if (service == null) return;
+    final revision = ++_gpuRevision;
+    if (activeId.isEmpty) {
+      // No model is selected yet; eligibility is meaningless until there is one.
+      runInAction(() {
+        gpu = service.status;
+        gpuReason = FormattingBackendReason.userDisabled;
+      });
+      return;
+    }
+    final decision = await service.decide(
+      activeId,
+      FormattingWorkload.organization,
+    );
+    if (revision != _gpuRevision) return;
+    runInAction(() {
+      gpu = service.status;
+      gpuReason = decision.reason;
+    });
+  }
+
+  @action
+  Future<void> setGpuPreferred(bool preferred) async {
+    if (gpuSaving || _acceleration == null) return;
+    gpuSaving = true;
+    gpuError = false;
+    try {
+      await _acceleration.setPreferred(preferred);
+      await _refreshGpu();
+    } catch (_) {
+      gpuError = true;
+    } finally {
+      gpuSaving = false;
+    }
+  }
+
+  @action
+  Future<void> retryGpu() async {
+    if (gpuSaving || gpu.busy || _acceleration == null) return;
+    gpuSaving = true;
+    gpuError = false;
+    try {
+      await _acceleration.resetCircuit();
+      await _refreshGpu();
+    } catch (_) {
+      gpuError = true;
+    } finally {
+      gpuSaving = false;
+    }
+  }
+
+  Future<void> dispose() async {
+    _gpuRevision++;
+    await _gpuSubscription?.cancel();
+  }
+
   final ModelDownloadsStore downloads;
   final IFormattingModelService _models;
   final DeviceProfileService _device;
@@ -122,6 +202,11 @@ abstract class _FormattingModelsStore with Store {
     try {
       profile = await _device.read();
       activeId = _models.activeModelId;
+      _gpuSubscription ??= _acceleration?.changes.listen((status) {
+        runInAction(() => gpu = status);
+        unawaited(_refreshGpu());
+      });
+      await _refreshGpu();
       await refresh();
     } catch (failure) {
       error = failure;
@@ -164,6 +249,7 @@ abstract class _FormattingModelsStore with Store {
       received.remove(model.id);
     }
     activeId = _models.activeModelId;
+    await _refreshGpu();
     reconcileTransfers(await downloads.refresh());
   }
 
@@ -334,6 +420,7 @@ abstract class _FormattingModelsStore with Store {
     try {
       await _models.activate(id);
       activeId = id;
+      await _refreshGpu();
       return true;
     } catch (failure) {
       error = failure;

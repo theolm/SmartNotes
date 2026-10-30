@@ -172,7 +172,15 @@ class MainActivity : FlutterFragmentActivity() {
                         manager.getMemoryInfo(memory)
                         result.success(mapOf(
                             "memoryBytes" to memory.totalMem,
+                            "availableMemoryBytes" to memory.availMem,
+                            // Shared SoC/hardware identity, never a device serial.
+                            "hardwareIdentity" to (if (Build.VERSION.SDK_INT >= 31)
+                                "android:${Build.SOC_MODEL}:${Build.SUPPORTED_ABIS.firstOrNull()}"
+                            else
+                                "android:${Build.HARDWARE}:${Build.SUPPORTED_ABIS.firstOrNull()}"),
+                            "runtimeIdentity" to "android:${Build.FINGERPRINT}",
                             "lowMemory" to manager.isLowRamDevice,
+                            "memoryPressure" to memory.lowMemory,
                             "is64Bit" to android.os.Process.is64Bit(),
                             "processors" to Runtime.getRuntime().availableProcessors(),
                             "soc" to if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else Build.HARDWARE,

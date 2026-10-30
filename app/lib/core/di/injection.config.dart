@@ -29,8 +29,12 @@ import 'package:smartnotes/data/services/audio_recording_service.dart' as _i391;
 import 'package:smartnotes/data/services/device_profile_service.dart' as _i406;
 import 'package:smartnotes/data/services/embedding_model_service.dart'
     as _i1059;
+import 'package:smartnotes/data/services/formatting_acceleration_service.dart'
+    as _i673;
 import 'package:smartnotes/data/services/formatting_feedback_service.dart'
     as _i1025;
+import 'package:smartnotes/data/services/formatting_inference_runner.dart'
+    as _i1029;
 import 'package:smartnotes/data/services/formatting_model_service.dart'
     as _i241;
 import 'package:smartnotes/data/services/github_app_update_service.dart'
@@ -75,8 +79,10 @@ import 'package:smartnotes/domain/services/i_entry_search_service.dart'
     as _i158;
 import 'package:smartnotes/domain/services/i_file_storage_service.dart'
     as _i269;
+import 'package:smartnotes/domain/services/i_formatting_acceleration_service.dart'
+    as _i589;
 import 'package:smartnotes/domain/services/i_formatting_feedback_service.dart'
-    as _i1029;
+    as _i1030;
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart'
     as _i984;
 import 'package:smartnotes/domain/services/i_journal_archive_service.dart'
@@ -162,6 +168,12 @@ Future<_i174.GetIt> $initGetIt(
   gh.lazySingleton<_i422.IEntryDraftRepository>(
     () => _i1055.LocalEntryDraftRepository(),
   );
+  gh.lazySingleton<_i1029.FormattingInferenceRunner>(
+    () => _i1029.FormattingInferenceRunner(
+      gh<_i589.IFormattingAccelerationService>(),
+      gh<_i935.LocalInferenceQueue>(),
+    ),
+  );
   gh.lazySingleton<_i991.IRecordingMetadata>(
     () => _i564.LocalRecordingMetadata(),
   );
@@ -178,6 +190,13 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i1039.AudioRecorder>(),
       gh<_i375.RecordingSignalDetector>(),
     ),
+  );
+  gh.lazySingleton<_i589.IFormattingAccelerationService>(
+    () => _i673.FormattingAccelerationService(
+      gh<_i460.SharedPreferences>(),
+      gh<_i406.DeviceProfileService>(),
+    ),
+    dispose: (i) => i.dispose(),
   );
   gh.lazySingleton<_i934.ModelDownloadsStore>(
     () => _i934.ModelDownloadsStore(gh<_i13.IPlatformModelDownloader>()),
@@ -255,18 +274,20 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i613.IEmbeddingService>(),
     ),
   );
-  gh.singleton<_i153.FormattingModelsStore>(
-    () => _i153.FormattingModelsStore(
-      gh<_i984.IFormattingModelService>(),
-      gh<_i406.DeviceProfileService>(),
-      downloads: gh<_i934.ModelDownloadsStore>(),
-    ),
-  );
   gh.factory<_i711.EntryEditStore>(
     () => _i711.EntryEditStore(
       gh<_i112.IJournalEntryService>(),
       gh<_i422.IEntryDraftRepository>(),
     ),
+  );
+  gh.singleton<_i153.FormattingModelsStore>(
+    () => _i153.FormattingModelsStore(
+      gh<_i984.IFormattingModelService>(),
+      gh<_i406.DeviceProfileService>(),
+      downloads: gh<_i934.ModelDownloadsStore>(),
+      acceleration: gh<_i589.IFormattingAccelerationService>(),
+    ),
+    dispose: _i153.disposeFormattingModelsStore,
   );
   gh.singleton<_i633.SettingsStore>(
     () => _i633.SettingsStore(
@@ -299,7 +320,7 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i872.IEmbeddingModelService>(),
     ),
   );
-  gh.lazySingleton<_i1029.IFormattingFeedbackService>(
+  gh.lazySingleton<_i1030.IFormattingFeedbackService>(
     () => _i1025.FormattingFeedbackService(
       gh<_i751.ProcessingFeedbackService>(),
       gh<_i984.IFormattingModelService>(),
@@ -317,13 +338,14 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i984.IFormattingModelService>(),
       gh<_i164.ITranscriptionService>(),
       gh<_i935.LocalInferenceQueue>(),
+      inference: gh<_i1029.FormattingInferenceRunner>(),
     ),
   );
   gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
     () => _i926.ProcessAudioNoteUseCase(
       gh<_i139.INoteProcessingService>(),
       gh<_i112.IJournalEntryService>(),
-      formattingFeedback: gh<_i1029.IFormattingFeedbackService>(),
+      formattingFeedback: gh<_i1030.IFormattingFeedbackService>(),
     ),
   );
   gh.factory<_i207.EntryDetailStore>(

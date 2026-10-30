@@ -94,6 +94,78 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
+  /// No description provided for @formattingGpuTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU acceleration (beta)'**
+  String get formattingGpuTitle;
+
+  /// No description provided for @formattingGpuDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'AI organization runs on the CPU. Changes apply to the next request.'**
+  String get formattingGpuDisabled;
+
+  /// No description provided for @formattingGpuUnqualified.
+  ///
+  /// In en, this message translates to:
+  /// **'This model and device have not been validated for GPU organization. Using CPU.'**
+  String get formattingGpuUnqualified;
+
+  /// No description provided for @formattingGpuMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough available memory for this GPU profile. Using CPU.'**
+  String get formattingGpuMemory;
+
+  /// No description provided for @formattingGpuInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU acceleration is paused after an interrupted request or runtime failure. Using CPU; restart the app if cleanup failed.'**
+  String get formattingGpuInterrupted;
+
+  /// No description provided for @formattingGpuEligible.
+  ///
+  /// In en, this message translates to:
+  /// **'GPU is eligible for the next organization request. Short title generation may still use CPU.'**
+  String get formattingGpuEligible;
+
+  /// No description provided for @formattingGpuRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry GPU eligibility'**
+  String get formattingGpuRetry;
+
+  /// No description provided for @formattingGpuFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Last completed request: CPU after GPU fallback.'**
+  String get formattingGpuFallback;
+
+  /// No description provided for @formattingGpuLastCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'Last completed request: CPU.'**
+  String get formattingGpuLastCpu;
+
+  /// No description provided for @formattingGpuLastVulkan.
+  ///
+  /// In en, this message translates to:
+  /// **'Last completed request: Vulkan GPU.'**
+  String get formattingGpuLastVulkan;
+
+  /// No description provided for @formattingGpuLastMetal.
+  ///
+  /// In en, this message translates to:
+  /// **'Last completed request: Metal GPU.'**
+  String get formattingGpuLastMetal;
+
+  /// No description provided for @formattingGpuSettingsError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the GPU setting. Please try again.'**
+  String get formattingGpuSettingsError;
+
   /// No description provided for @settingsAppVersion.
   ///
   /// In en, this message translates to:
