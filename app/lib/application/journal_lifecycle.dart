@@ -95,7 +95,10 @@ class JournalLifecycle {
   );
 
   Future<void> _processEntry(JournalEntry entry) async {
-    await _feedback.begin(entry.id, _speechModels?.model.name ?? 'Whisper');
+    final job = await _feedback.begin(
+      entry.id,
+      _speechModels?.model.name ?? 'Whisper',
+    );
     try {
       final persisted = await _journal.update(
         entry.copyWith(status: EntryStatus.processing),
@@ -104,17 +107,19 @@ class JournalLifecycle {
       await _feedback.update(
         ProcessingPhase.transcribing,
         _speechModels?.model.name ?? 'Whisper',
+        job: job,
       );
       await _processing.process(persisted);
       await _feedback.update(
         ProcessingPhase.preparingSearch,
         _models.model.name,
+        job: job,
       );
       _requestIndex();
       await _indexing;
-      await _feedback.finish();
+      await _feedback.finish(job: job);
     } catch (error) {
-      await _feedback.finish(failed: true);
+      await _feedback.finish(failed: true, job: job);
       try {
         final latest = await _journal.getById(entry.id);
         if (latest != null &&

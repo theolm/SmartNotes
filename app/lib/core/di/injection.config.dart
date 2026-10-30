@@ -29,6 +29,8 @@ import 'package:smartnotes/data/services/audio_recording_service.dart' as _i391;
 import 'package:smartnotes/data/services/device_profile_service.dart' as _i406;
 import 'package:smartnotes/data/services/embedding_model_service.dart'
     as _i1059;
+import 'package:smartnotes/data/services/formatting_feedback_service.dart'
+    as _i1025;
 import 'package:smartnotes/data/services/formatting_model_service.dart'
     as _i241;
 import 'package:smartnotes/data/services/github_app_update_service.dart'
@@ -73,6 +75,8 @@ import 'package:smartnotes/domain/services/i_entry_search_service.dart'
     as _i158;
 import 'package:smartnotes/domain/services/i_file_storage_service.dart'
     as _i269;
+import 'package:smartnotes/domain/services/i_formatting_feedback_service.dart'
+    as _i1029;
 import 'package:smartnotes/domain/services/i_formatting_model_service.dart'
     as _i984;
 import 'package:smartnotes/domain/services/i_journal_archive_service.dart'
@@ -295,6 +299,12 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i872.IEmbeddingModelService>(),
     ),
   );
+  gh.lazySingleton<_i1029.IFormattingFeedbackService>(
+    () => _i1025.FormattingFeedbackService(
+      gh<_i751.ProcessingFeedbackService>(),
+      gh<_i984.IFormattingModelService>(),
+    ),
+  );
   gh.singleton<_i462.SpeechModelsStore>(
     () => _i462.SpeechModelsStore(
       gh<_i824.ISpeechModelService>(),
@@ -309,6 +319,20 @@ Future<_i174.GetIt> $initGetIt(
       gh<_i935.LocalInferenceQueue>(),
     ),
   );
+  gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
+    () => _i926.ProcessAudioNoteUseCase(
+      gh<_i139.INoteProcessingService>(),
+      gh<_i112.IJournalEntryService>(),
+      formattingFeedback: gh<_i1029.IFormattingFeedbackService>(),
+    ),
+  );
+  gh.factory<_i207.EntryDetailStore>(
+    () => _i207.EntryDetailStore(
+      gh<_i112.IJournalEntryService>(),
+      gh<_i926.ProcessAudioNoteUseCase>(),
+      gh<_i984.IFormattingModelService>(),
+    ),
+  );
   gh.factory<_i588.OnboardingStore>(
     () => _i588.OnboardingStore(
       gh<_i633.SettingsStore>(),
@@ -319,19 +343,6 @@ Future<_i174.GetIt> $initGetIt(
       downloads: gh<_i934.ModelDownloadsStore>(),
       processingFeedback: gh<_i751.ProcessingFeedbackService>(),
       embeddings: gh<_i739.EmbeddingModelsStore>(),
-    ),
-  );
-  gh.lazySingleton<_i926.ProcessAudioNoteUseCase>(
-    () => _i926.ProcessAudioNoteUseCase(
-      gh<_i139.INoteProcessingService>(),
-      gh<_i112.IJournalEntryService>(),
-    ),
-  );
-  gh.factory<_i207.EntryDetailStore>(
-    () => _i207.EntryDetailStore(
-      gh<_i112.IJournalEntryService>(),
-      gh<_i926.ProcessAudioNoteUseCase>(),
-      gh<_i984.IFormattingModelService>(),
     ),
   );
   gh.lazySingleton<_i108.JournalLifecycle>(

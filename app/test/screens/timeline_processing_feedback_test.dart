@@ -7,6 +7,54 @@ import 'package:smartnotes/domain/entities/processing_feedback.dart';
 import 'package:smartnotes/presentation/screens/home/widgets/timeline_item.dart';
 
 void main() {
+  for (final phase in [
+    ProcessingPhase.preparingFormatting,
+    ProcessingPhase.formatting,
+  ]) {
+    testWidgets('shows ${phase.name} on a completed, readable note', (
+      tester,
+    ) async {
+      final now = DateTime(2026, 10, 29);
+      final entry = JournalEntry(
+        id: 'formatting',
+        createdAt: now,
+        updatedAt: now,
+        status: EntryStatus.completed,
+        transcription: 'Saved words remain readable.',
+      );
+      var opened = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: TimelineItem(
+              entry: entry,
+              feedback: ProcessingFeedback(
+                entryId: entry.id,
+                phase: phase,
+                modelName: 'Qwen3 1.7B Q4_K_M',
+              ),
+              onOpen: () => opened = true,
+            ),
+          ),
+        ),
+      );
+      expect(
+        find.text(
+          phase == ProcessingPhase.formatting
+              ? 'Formatting note…'
+              : 'Preparing AI formatting…',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Saved words remain readable.'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await tester.tap(find.text('Saved words remain readable.'));
+      expect(opened, true);
+    });
+  }
+
   testWidgets('shows that the note is ready while search is prepared', (
     tester,
   ) async {
@@ -72,30 +120,33 @@ void main() {
     expect(find.text('**Important**'), findsNothing);
   });
 
-  testWidgets('uses the note body instead of subtitle in the timeline preview', (
-    tester,
-  ) async {
-    final now = DateTime(2026, 10, 20, 9, 30);
-    final entry = JournalEntry(
-      id: 'entry-subtitle',
-      createdAt: now,
-      updatedAt: now,
-      status: EntryStatus.completed,
-      transcription: 'The current note body.',
-      title: 'Conversation',
-      subTitle: 'Plans for tomorrow.',
-    );
+  testWidgets(
+    'uses the note body instead of subtitle in the timeline preview',
+    (
+      tester,
+    ) async {
+      final now = DateTime(2026, 10, 20, 9, 30);
+      final entry = JournalEntry(
+        id: 'entry-subtitle',
+        createdAt: now,
+        updatedAt: now,
+        status: EntryStatus.completed,
+        transcription: 'The current note body.',
+        title: 'Conversation',
+        subTitle: 'Plans for tomorrow.',
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: TimelineItem(entry: entry)),
-      ),
-    );
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: TimelineItem(entry: entry)),
+        ),
+      );
 
-    expect(find.text('Conversation'), findsOneWidget);
-    expect(find.text('Plans for tomorrow.'), findsNothing);
-    expect(find.text('The current note body.'), findsOneWidget);
-  });
+      expect(find.text('Conversation'), findsOneWidget);
+      expect(find.text('Plans for tomorrow.'), findsNothing);
+      expect(find.text('The current note body.'), findsOneWidget);
+    },
+  );
 }

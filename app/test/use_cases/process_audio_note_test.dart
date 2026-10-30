@@ -8,11 +8,28 @@ import 'package:smartnotes/domain/entities/journal_entry.dart';
 import 'package:smartnotes/domain/entities/processed_audio.dart';
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart';
 import 'package:smartnotes/domain/services/i_note_processing_service.dart';
+import 'package:smartnotes/domain/services/i_formatting_feedback_service.dart';
 import 'package:smartnotes/domain/use_cases/process_audio_note.dart';
 
 class MockProcessing extends Mock implements INoteProcessingService {}
 
 class MockJournal extends Mock implements IJournalEntryService {}
+
+class RecordingFormattingFeedback implements IFormattingFeedbackService {
+  String? entryId;
+  bool running = false;
+
+  @override
+  Future<T> run<T>(String entryId, Future<T> Function() operation) async {
+    this.entryId = entryId;
+    running = true;
+    try {
+      return await operation();
+    } finally {
+      running = false;
+    }
+  }
+}
 
 void main() {
   final now = DateTime(2026, 10, 8);
@@ -208,6 +225,70 @@ void main() {
     );
     verifyZeroInteractions(processing);
   });
+
+  test(
+    'AI preview runs inside formatting feedback without saving the draft',
+    () async {
+      final feedback = RecordingFormattingFeedback();
+      final tracked = ProcessAudioNoteUseCase(
+        processing,
+        journal,
+        formattingFeedback: feedback,
+      );
+      when(
+        () => processing.formatTranscription(
+          action: AiAction.organizedNote,
+          transcription: 'Source',
+        ),
+      ).thenAnswer((_) async {
+        expect(feedback.running, true);
+        return const ProcessedAudio(
+          title: 'Title',
+          subTitle: 'Subtitle',
+          markdown: 'Preview',
+          transcription: 'Source',
+        );
+      });
+      final draft = await tracked.applyAiAction(
+        entry.copyWith(transcription: 'Source'),
+        AiAction.organizedNote,
+      );
+      expect(feedback.entryId, entry.id);
+      expect(feedback.running, false);
+      expect(draft.body, 'Preview');
+      expect(draft.transcription, 'Source');
+      verifyZeroInteractions(journal);
+    },
+  );
+
+  test(
+    'AI failure ends formatting feedback without changing saved content',
+    () async {
+      final feedback = RecordingFormattingFeedback();
+      final tracked = ProcessAudioNoteUseCase(
+        processing,
+        journal,
+        formattingFeedback: feedback,
+      );
+      const failure = AiFailure(AiFailureCode.invalidNote);
+      when(
+        () => processing.formatTranscription(
+          action: AiAction.organizedNote,
+          transcription: 'Source',
+        ),
+      ).thenThrow(failure);
+      await expectLater(
+        tracked.applyAiAction(
+          entry.copyWith(transcription: 'Source'),
+          AiAction.organizedNote,
+        ),
+        throwsA(same(failure)),
+      );
+      expect(feedback.entryId, entry.id);
+      expect(feedback.running, false);
+      verifyZeroInteractions(journal);
+    },
+  );
   test('preserves entry date when applying an action', () async {
     final dated = entry.copyWith(
       transcription: 'Original speech',

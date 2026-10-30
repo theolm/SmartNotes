@@ -41,7 +41,8 @@ class ProcessingFeedbackService {
   final _changes = StreamController<ProcessingFeedback?>.broadcast();
   final _entryOpens = StreamController<String>.broadcast();
   ProcessingFeedback? _current;
-  int _generation = 0;
+  int _nextJob = 0;
+  final _jobs = <int, ProcessingFeedback>{};
 
   bool get supported =>
       _forceSupported ||
@@ -65,38 +66,54 @@ class ProcessingFeedbackService {
       !supported ||
       (await channel.invokeMethod<bool>('requestNotifications') ?? false);
 
-  Future<void> begin(String entryId, String modelName) async {
-    _generation++;
-    await _set(
-      ProcessingFeedback(
-        entryId: entryId,
-        phase: ProcessingPhase.preparingTranscription,
-        modelName: modelName,
-      ),
+  Future<int> begin(
+    String entryId,
+    String modelName, {
+    ProcessingPhase phase = ProcessingPhase.preparingTranscription,
+  }) async {
+    final job = ++_nextJob;
+    final feedback = ProcessingFeedback(
+      entryId: entryId,
+      phase: phase,
+      modelName: modelName,
     );
+    _jobs[job] = feedback;
+    await _set(feedback);
+    return job;
   }
 
-  Future<void> update(ProcessingPhase phase, String modelName) async {
-    final current = _current;
+  Future<void> update(
+    ProcessingPhase phase,
+    String modelName, {
+    int? job,
+  }) async {
+    job ??= _jobs.keys.lastOrNull;
+    final current = _jobs[job];
     if (current == null) return;
-    await _set(
-      ProcessingFeedback(
-        entryId: current.entryId,
-        phase: phase,
-        modelName: modelName,
-      ),
+    final feedback = ProcessingFeedback(
+      entryId: current.entryId,
+      phase: phase,
+      modelName: modelName,
     );
+    _jobs[job!] = feedback;
+    if (job == _jobs.keys.last) await _set(feedback);
   }
 
-  Future<void> finish({bool failed = false}) async {
-    if (_current == null) return;
-    final generation = ++_generation;
+  Future<void> finish({bool failed = false, int? job}) async {
+    job ??= _jobs.keys.lastOrNull;
+    final current = _jobs[job];
+    if (current == null) return;
     if (!failed) {
-      await update(ProcessingPhase.finalizing, _current!.modelName);
-      if (supported) {
+      await update(ProcessingPhase.finalizing, current.modelName, job: job);
+      if (supported && job == _jobs.keys.lastOrNull) {
         await Future<void>.delayed(const Duration(milliseconds: 500));
       }
-      if (generation != _generation) return;
+    }
+    final wasVisible = job == _jobs.keys.lastOrNull;
+    if (_jobs.remove(job) == null || !wasVisible) return;
+    if (_jobs.isNotEmpty) {
+      await _set(_jobs.values.last);
+      return;
     }
     _current = null;
     _changes.add(null);
@@ -105,6 +122,8 @@ class ProcessingFeedbackService {
         await channel.invokeMethod<void>('dismiss');
       } on PlatformException {
         // Feedback must never change the outcome of local processing.
+      } on MissingPluginException {
+        // Native feedback may be unavailable in a test or unsupported host.
       }
     }
   }
@@ -123,6 +142,16 @@ class ProcessingFeedbackService {
       ProcessingPhase.transcribing => (
         copy.processingNotificationTitle,
         copy.processingTranscribingAudio,
+        copy.processingRunningModel(feedback.modelName),
+      ),
+      ProcessingPhase.preparingFormatting => (
+        copy.processingNotificationTitle,
+        copy.processingPreparingFormatting,
+        copy.processingLoadingModel(feedback.modelName),
+      ),
+      ProcessingPhase.formatting => (
+        copy.processingNotificationTitle,
+        copy.processingFormattingNote,
         copy.processingRunningModel(feedback.modelName),
       ),
       ProcessingPhase.preparingSearch => (
@@ -146,6 +175,8 @@ class ProcessingFeedbackService {
       });
     } on PlatformException {
       // In-app status remains available if native notifications fail.
+    } on MissingPluginException {
+      // Keep formatting and transcription usable without a native handler.
     }
   }
 

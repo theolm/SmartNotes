@@ -646,6 +646,18 @@ abstract class AppLocalizations {
   /// **'Preparing transcription…'**
   String get processingPreparingTranscription;
 
+  /// No description provided for @processingPreparingFormatting.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing AI formatting…'**
+  String get processingPreparingFormatting;
+
+  /// No description provided for @processingFormattingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Formatting note…'**
+  String get processingFormattingNote;
+
   /// No description provided for @processingTranscribingAudio.
   ///
   /// In en, this message translates to:
@@ -697,7 +709,7 @@ abstract class AppLocalizations {
   /// No description provided for @notificationPermissionBody.
   ///
   /// In en, this message translates to:
-  /// **'SmartNotes uses silent notifications to show when it is downloading models, transcribing audio, preparing notes for search, and releasing models from memory. Your note content never appears in notifications.'**
+  /// **'SmartNotes uses silent notifications to show when it is downloading models, transcribing audio, formatting notes with AI, preparing notes for search, and releasing models from memory. Your note content never appears in notifications.'**
   String get notificationPermissionBody;
 
   /// No description provided for @notificationPermissionAllow.

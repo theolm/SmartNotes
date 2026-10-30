@@ -261,6 +261,8 @@ class _ProcessingPill extends StatelessWidget {
       ProcessingPhase.preparingTranscription =>
         l10n.processingPreparingTranscription,
       ProcessingPhase.transcribing => l10n.processingTranscribingAudio,
+      ProcessingPhase.preparingFormatting => l10n.processingPreparingFormatting,
+      ProcessingPhase.formatting => l10n.processingFormattingNote,
       ProcessingPhase.preparingSearch =>
         '${l10n.processingNoteReadyTitle} · ${l10n.processingPreparingSearch}',
       ProcessingPhase.finalizing => l10n.processingFinalizing,
