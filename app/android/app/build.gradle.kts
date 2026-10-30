@@ -74,5 +74,5 @@ flutter {
 dependencies {
     testImplementation("junit:junit:4.13.2")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
 }
