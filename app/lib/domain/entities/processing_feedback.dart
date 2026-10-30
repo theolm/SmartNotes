@@ -1,6 +1,8 @@
 enum ProcessingPhase {
   preparingTranscription,
   transcribing,
+  preparingFormatting,
+  formatting,
   preparingSearch,
   finalizing,
 }

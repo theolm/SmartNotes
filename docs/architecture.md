@@ -385,6 +385,24 @@ Formatting:
 - Generate an unsaved preview first. Persist only after explicit acceptance. Preserve the recording, original transcription, entry date, and creation timestamp.
 - A missing or corrupt formatting model maps to a formatting-specific failure, not the embedding-model message.
 - Keep the action enum, prompt mapping, localization, and action sheet in sync.
+- Explicit formatting previews run through `IFormattingFeedbackService`, backed
+  by the shared native processing notification and timeline feedback. Show
+  preparing/running phases with the selected formatting model, then finalize
+  and dismiss on success or failure without saving or changing entry status.
+  Feedback jobs have independent identities: overlapping capture and formatting
+  cannot update or dismiss each other's status, and the latest remaining job is
+  restored when the visible job ends. Notification permission/plugin failures
+  never fail inference. This reuses the transcription notification mechanism;
+  it does not make Dart inference a durable OS worker.
+- Formatting prompts specify each preset without sample output: English examples
+  can bias small models toward translation, and shared list examples can bias
+  presentation. The source alone determines output language, including mixed
+  passages, never the English instructions, app locale or preset name. Key points
+  selects and shortens source phrases without translating them.
+  Journal, formal-summary and casual-recap presets
+  require connected prose even when the current note is a list. Faithful
+  transcription preserves wording, order and existing lists with grammar and
+  punctuation fixes only; it is not a summary or a restoration of original text.
 
 Embeddings:
 
@@ -564,6 +582,14 @@ Model checks and journal recovery must never delay route protection or the first
   license before obtaining it; the test never downloads weights. Catalog/unit
   coverage is not evidence of native compatibility, fidelity or acceptable
   latency: validate the new 4B artifacts on target platforms separately.
+- Formatting regression coverage checks preset-specific, example-free prompts,
+  unchanged-source previews and explicitly accepted chains. The opt-in native
+  test asserts prose versus bullets, faithful wording and existing source lists,
+  source-language preservation, and a key-points-to-journal transformation.
+  Key-points language fixtures explicitly cover Portuguese, Spanish, French and
+  mixed Portuguese/English, including negation, uncertainty, quantities and days.
+  Structural assertions are not a semantic-fidelity guarantee; review real-model
+  outputs separately before claiming quality across all supported artifacts.
 - Native macOS integration coverage for adaptive entry selection lives in
   `integration_test/adaptive_journal_platform_test.dart`. It opens only a generated
   temporary journal, runs the actual SQLite worker and nested routes, and never

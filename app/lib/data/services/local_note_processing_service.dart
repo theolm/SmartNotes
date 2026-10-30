@@ -155,12 +155,11 @@ ${metadataOnly ? 'The subtitle must be one concise sentence complementing the ti
 Do not repeat title or subTitle as opening headings, bold labels, or introductory metadata in markdown.
 Do not add a document heading or a generic opening label such as "Summary" or "Key points".
 Keep all source facts in the body; metadata must not be the only place containing a fact.
-Start directly with prose or bullets. Only the organized-note preset may use useful section headings (##), never a document title (#).
+Follow only the selected presentation preset below. Do not default to a bullet-point summary.
 Fix grammar and punctuation.
 Presentation: ${_instruction(action)} Write the markdown body in the same language as the transcription; never translate it.
-Example shape only; never copy its facts or language:
-{"title":"Tomorrow's conversation","subTitle":"Plans to speak with Ana.","markdown":"- Speak with Ana tomorrow."}
-Incorrect markdown opening for that example: # Tomorrow's conversation or **Plans to speak with Ana.**'''}''',
+Language is determined only by the source transcription, not by these English instructions, JSON field names, the preset name, or the app language.
+Preserve the language of each source passage, including mixed-language notes. Changing the presentation never authorizes translation.'''}''',
         ),
         // JSON quoting separates untrusted source from the system instructions.
         LlamaChatMessage.fromText(
@@ -277,16 +276,16 @@ Incorrect markdown opening for that example: # Tomorrow's conversation or **Plan
 
   String _instruction(AiAction action) => switch (action) {
     AiAction.organizedNote =>
-      'Organize into a clear note. Start with the content; use ## section headings only where useful, without an opening summary that repeats metadata.',
+      'Organize into a clear note, preserving all source details. Group related ideas without turning the whole note into a summary. Start with the content; use ## section headings only where useful, never a document title (#). Use prose or lists where appropriate.',
     AiAction.journalEntry =>
-      'Start directly with reflective first-person prose using only the source thoughts. No headings or introductory labels.',
+      'Write connected first-person prose in paragraphs using only the source thoughts. Preserve the source details and emotional tone; do not invent reflections. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.keyPoints =>
-      'Start directly with concise bullets containing the key points. No headings or introductory labels.',
+      'Extract concise bullet points, each starting with "- ", by selecting and shortening phrases from the source. Reuse the source wording and keep every bullet in the language of its source passage. Do not translate into English or any other language. Preserve facts and qualifications, including negation and uncertainty. No headings or introductory labels.',
     AiAction.formalSummary =>
-      'Start directly with neutral, formal summary prose. No headings or introductory labels.',
+      'Write neutral, formal summary prose in connected paragraphs. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.casualRecap =>
-      'Start directly with relaxed, conversational prose. No headings or introductory labels.',
+      'Write relaxed, conversational prose in connected paragraphs, preserving the source meaning and details. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.faithfulTranscription =>
-      'Keep the original wording and order; only fix punctuation and grammar. Do not add headings, labels or an introduction.',
+      'Keep the original wording, order, point of view and all details; only fix punctuation and grammar. Do not summarize, paraphrase, reorganize or turn prose into a list. Preserve existing source lists rather than inventing new ones. Already correct text must remain unchanged. Do not add headings, labels or an introduction.',
   };
 }

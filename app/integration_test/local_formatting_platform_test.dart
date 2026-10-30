@@ -75,7 +75,7 @@ class _UnusedTranscription implements ITranscriptionService {
       throw StateError('Not an STT test');
 }
 
-/// Opt-in real GGUF smoke test, not a multilingual fidelity benchmark.
+/// Opt-in real GGUF preset regression test, not a multilingual benchmark.
 /// flutter test integration_test/local_formatting_platform_test.dart -d macos
 /// --dart-define=FORMATTING_MODEL_PATH=/absolute/path/Qwen3-1.7B-Q4_K_M.gguf
 /// Select another catalog artifact with --dart-define=FORMATTING_MODEL_ID=...
@@ -125,8 +125,37 @@ void main() {
       expect(note.markdown.toLowerCase(), contains('não'));
       expect(note.transcription, source);
       expect(note.markdown, isNot(contains('<think>')));
+      _expectPresentation(action, note.markdown);
+      if (action == AiAction.journalEntry) {
+        expect(note.markdown.toLowerCase(), contains('conversei'));
+      }
+      if (action == AiAction.faithfulTranscription) {
+        // This source already has correct grammar: no rewriting is needed.
+        expect(note.markdown.trim(), source);
+      }
     }, skip: path.isEmpty);
   }
+  testWidgets('real ${selected.id} converts key points back to journal prose', (
+    tester,
+  ) async {
+    const source =
+        'Hoje conversei com Marina sobre o projeto em Lisboa. Não vou viajar amanhã.';
+    final bullets = await service.formatTranscription(
+      action: AiAction.keyPoints,
+      transcription: source,
+    );
+    _expectPresentation(AiAction.keyPoints, bullets.markdown);
+    final journal = await service.formatTranscription(
+      action: AiAction.journalEntry,
+      transcription: bullets.markdown,
+    );
+    _expectPresentation(AiAction.journalEntry, journal.markdown);
+    expect(journal.markdown, contains('Marina'));
+    expect(journal.markdown, contains('Lisboa'));
+    expect(journal.markdown.toLowerCase(), contains('não'));
+    expect(journal.markdown.toLowerCase(), contains('amanhã'));
+    expect(journal.transcription, bullets.markdown);
+  }, skip: path.isEmpty);
   for (final source in [
     'I spoke with Marina about the project in Lisbon. I will not travel tomorrow.',
     'Hablé con Marina sobre el proyecto en Lisboa. No voy a viajar mañana.',
@@ -143,6 +172,87 @@ void main() {
       expect(note.transcription, source);
       expect(note.markdown, isNot(contains('<think>')));
       expect(note.markdown, isNot(contains('conversei')));
+      expect(note.markdown.trim(), source);
     }, skip: path.isEmpty);
+  }
+  for (final fixture in [
+    (
+      language: 'Portuguese',
+      source:
+          'Não vou viajar amanhã. Talvez eu envie 3 páginas na sexta-feira.',
+      requiredWords: ['não', 'amanhã', 'talvez', '3', 'páginas', 'sexta'],
+    ),
+    (
+      language: 'Spanish',
+      source: 'No voy a viajar mañana. Quizás envíe 3 páginas el viernes.',
+      requiredWords: ['no', 'mañana', 'quizás', '3', 'páginas', 'viernes'],
+    ),
+    (
+      language: 'French',
+      source:
+          'Je ne voyagerai pas demain. J’enverrai peut-être 3 pages vendredi.',
+      requiredWords: ['pas', 'demain', 'peut-être', '3', 'pages', 'vendredi'],
+    ),
+    (
+      language: 'mixed Portuguese and English',
+      source: 'Não vou viajar amanhã. I might send 3 pages on Friday.',
+      requiredWords: ['não', 'amanhã', 'might', '3', 'pages', 'friday'],
+    ),
+  ]) {
+    testWidgets(
+      'real ${selected.id} key points preserves ${fixture.language}',
+      (tester) async {
+        final note = await service.formatTranscription(
+          action: AiAction.keyPoints,
+          transcription: fixture.source,
+        );
+        _expectPresentation(AiAction.keyPoints, note.markdown);
+        for (final word in fixture.requiredWords) {
+          expect(note.markdown.toLowerCase(), contains(word));
+        }
+        expect(note.transcription, fixture.source);
+        expect(note.markdown, isNot(contains('<think>')));
+      },
+      skip: path.isEmpty,
+    );
+  }
+  testWidgets(
+    'real ${selected.id} faithful preset preserves existing lists and details',
+    (
+      tester,
+    ) async {
+      const source =
+          '- Hoje conversei com Marina em Lisboa.\n'
+          '- Não vou viajar amanhã.\n'
+          '- Talvez eu envie 3 páginas na sexta-feira.';
+      final note = await service.formatTranscription(
+        action: AiAction.faithfulTranscription,
+        transcription: source,
+      );
+      expect(note.markdown.trim(), source);
+      expect(note.transcription, source);
+    },
+    skip: path.isEmpty,
+  );
+}
+
+void _expectPresentation(AiAction action, String body) {
+  final listMarker = RegExp(r'^\s*(?:[-*+]|\d+[.)])\s+', multiLine: true);
+  final heading = RegExp(r'^\s*#{1,6}\s+', multiLine: true);
+  switch (action) {
+    case AiAction.keyPoints:
+      final lines = body.split('\n').where((line) => line.trim().isNotEmpty);
+      expect(lines, isNotEmpty);
+      expect(lines, everyElement(matches(r'^\s*-\s+\S')));
+      expect(heading.hasMatch(body), false);
+    case AiAction.journalEntry:
+    case AiAction.formalSummary:
+    case AiAction.casualRecap:
+    case AiAction.faithfulTranscription:
+      // The faithful-transcription fixtures are prose, not source lists.
+      expect(listMarker.hasMatch(body), false);
+      expect(heading.hasMatch(body), false);
+    case AiAction.organizedNote:
+      expect(RegExp(r'^\s*#\s+', multiLine: true).hasMatch(body), false);
   }
 }

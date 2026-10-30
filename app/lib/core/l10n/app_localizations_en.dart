@@ -319,6 +319,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get processingPreparingTranscription => 'Preparing transcription…';
 
   @override
+  String get processingPreparingFormatting => 'Preparing AI formatting…';
+
+  @override
+  String get processingFormattingNote => 'Formatting note…';
+
+  @override
   String get processingTranscribingAudio => 'Transcribing audio…';
 
   @override
@@ -350,7 +356,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationPermissionBody =>
-      'SmartNotes uses silent notifications to show when it is downloading models, transcribing audio, preparing notes for search, and releasing models from memory. Your note content never appears in notifications.';
+      'SmartNotes uses silent notifications to show when it is downloading models, transcribing audio, formatting notes with AI, preparing notes for search, and releasing models from memory. Your note content never appears in notifications.';
 
   @override
   String get notificationPermissionAllow => 'Allow notifications';

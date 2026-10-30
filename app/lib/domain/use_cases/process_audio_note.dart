@@ -3,20 +3,26 @@ import 'package:injectable/injectable.dart';
 import 'package:smartnotes/domain/entities/enums/ai_action.dart';
 import 'package:smartnotes/domain/entities/enums/entry_status.dart';
 import 'package:smartnotes/domain/entities/journal_entry.dart';
+import 'package:smartnotes/domain/entities/processed_audio.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/transcription_text.dart';
 import 'package:smartnotes/domain/services/i_journal_entry_service.dart';
 import 'package:smartnotes/domain/services/i_note_processing_service.dart';
+import 'package:smartnotes/domain/services/i_formatting_feedback_service.dart';
 
 @lazySingleton
 class ProcessAudioNoteUseCase {
   ProcessAudioNoteUseCase(
     this._noteProcessingService,
-    this._journalEntryService,
-  );
+    this._journalEntryService, {
+    IFormattingFeedbackService? formattingFeedback,
+    // Keep the injectable named parameter public and the dependency private.
+    // ignore: prefer_initializing_formals
+  }) : _formattingFeedback = formattingFeedback;
 
   final INoteProcessingService _noteProcessingService;
   final IJournalEntryService _journalEntryService;
+  final IFormattingFeedbackService? _formattingFeedback;
   final _running = <String>{};
 
   Future<JournalEntry> _exclusive(
@@ -92,10 +98,13 @@ class ProcessAudioNoteUseCase {
       throw const AiFailure(AiFailureCode.noSpeech);
     }
 
-    final processed = await _noteProcessingService.formatTranscription(
-      action: action,
-      transcription: source,
-    );
+    Future<ProcessedAudio> generate() =>
+        _noteProcessingService.formatTranscription(
+          action: action,
+          transcription: source,
+        );
+    final processed =
+        await (_formattingFeedback?.run(entry.id, generate) ?? generate());
 
     return entry.copyWith(
       title: processed.title,

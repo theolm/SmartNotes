@@ -305,8 +305,79 @@ void main() {
           session.messages!.first.content,
           contains('Do not repeat title or subTitle'),
         );
-        expect(session.messages!.first.content, contains('Example shape only'));
+        final prompt = session.messages!.first.content;
+        // No sample output should prime small models to use English or lists.
+        expect(prompt, isNot(contains('Output:')));
+        expect(prompt, isNot(contains('"markdown":')));
+        expect(prompt, isNot(contains('Speak with Ana tomorrow')));
+        expect(prompt, contains('not by these English instructions'));
+        expect(prompt, contains('including mixed-language notes'));
+        if (action == AiAction.keyPoints) {
+          expect(prompt, contains('each starting with "- "'));
+          expect(
+            prompt,
+            contains('keep every bullet in the language of its source passage'),
+          );
+          expect(prompt, contains('Reuse the source wording'));
+          expect(prompt, contains('Do not translate into English'));
+        }
+        if (action == AiAction.journalEntry) {
+          expect(prompt, contains('first-person prose in paragraphs'));
+        }
+        switch (action) {
+          case AiAction.journalEntry:
+          case AiAction.formalSummary:
+          case AiAction.casualRecap:
+            expect(prompt, contains('Convert source lists into sentences'));
+            expect(prompt, contains('No bullet points, numbered lists'));
+          case AiAction.faithfulTranscription:
+            expect(
+              prompt,
+              contains('Do not summarize, paraphrase, reorganize'),
+            );
+            expect(prompt, contains('Preserve existing source lists'));
+          case AiAction.organizedNote:
+            expect(prompt, contains('section headings only where useful'));
+          case AiAction.keyPoints:
+            break;
+        }
         expect(session.disposed, true);
+      },
+    );
+  }
+  for (final source in [
+    'Não vou viajar amanhã. Talvez eu envie 3 páginas na sexta-feira.',
+    'No voy a viajar mañana. Quizás envíe 3 páginas el viernes.',
+    'Je ne voyagerai pas demain. J’enverrai peut-être 3 pages vendredi.',
+    '明日は旅行しません。金曜日に3ページ送るかもしれません。',
+    'Não vou viajar amanhã. I might send 3 pages on Friday.',
+  ]) {
+    test(
+      'key points uses the exact source as its language authority: $source',
+      () async {
+        await service.formatTranscription(
+          action: AiAction.keyPoints,
+          transcription: source,
+        );
+        expect(session.messages, hasLength(2));
+        expect(jsonDecode(session.messages!.last.content), {
+          'transcription': source,
+        });
+        final prompt = session.messages!.first.content;
+        expect(
+          prompt,
+          contains('selecting and shortening phrases from the source'),
+        );
+        expect(
+          prompt,
+          contains('Preserve the language of each source passage'),
+        );
+        expect(
+          prompt,
+          contains('Changing the presentation never authorizes translation'),
+        );
+        expect(prompt, isNot(contains('"markdown":')));
+        expect(session.format, LocalNoteProcessingService.responseFormat);
       },
     );
   }

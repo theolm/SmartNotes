@@ -85,9 +85,13 @@ component-specific styling.
   incomplete-search notice.
 - Note processing uses one silent, replace-in-place system notification and a
   matching status on the timeline entry. User-facing states are preparing
-  transcription, transcribing, note ready while preparing search, and
+  transcription, transcribing, preparing AI formatting, formatting a note,
+  note ready while preparing search, and
   finalizing; expanded notification content may name the active local model.
   The notification opens the note and disappears after success or failure.
+  The magic wand uses this same notification and timeline status, including the
+  selected formatting model in expanded details. Its saved note remains readable
+  and completed while a preview is generated; feedback never applies the draft.
   Onboarding explains notification access before the system permission prompt;
   denial never blocks recording or processing and is not requested again.
 - Search has one field: words refresh while typing, and explicit submission adds
