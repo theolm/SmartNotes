@@ -8,6 +8,7 @@ import 'package:smartnotes/core/di/injection.dart';
 import 'package:smartnotes/core/l10n/app_localizations.dart';
 import 'package:smartnotes/core/routes/app_route.dart';
 import 'package:smartnotes/domain/services/i_speech_acceleration_service.dart';
+import 'package:smartnotes/domain/services/i_formatting_acceleration_service.dart';
 import 'package:smartnotes/presentation/screens/settings/settings_store.dart';
 import 'package:smartnotes/presentation/app_store.dart';
 import 'package:smartnotes/core/theme/theme.dart';
@@ -54,6 +55,7 @@ void main() async {
   }
 
   final settingsStore = getIt<SettingsStore>();
+  await getIt<IFormattingAccelerationService>().initialize();
   try {
     await settingsStore.load();
   } catch (_) {

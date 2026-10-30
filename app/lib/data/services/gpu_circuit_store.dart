@@ -10,12 +10,21 @@ import 'package:path_provider/path_provider.dart';
 /// It intentionally contains no audio, transcript, entry, or file paths.
 @lazySingleton
 class GpuCircuitStore {
-  GpuCircuitStore() : _fileOverride = null;
+  GpuCircuitStore()
+    : _fileOverride = null,
+      _fileName = 'speech-gpu-circuit.json';
+
+  /// Separate namespace: formatting must never reset the speech circuit.
+  GpuCircuitStore.formatting()
+    : _fileOverride = null,
+      _fileName = 'formatting-gpu-circuit.json';
 
   @visibleForTesting
-  GpuCircuitStore.at(File file) : _fileOverride = file;
+  GpuCircuitStore.at(File file)
+    : _fileOverride = file,
+      _fileName = 'speech-gpu-circuit.json';
 
-  static const _fileName = 'speech-gpu-circuit.json';
+  final String _fileName;
   static const _failureLimit = 2;
 
   final File? _fileOverride;

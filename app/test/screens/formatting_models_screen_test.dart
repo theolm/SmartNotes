@@ -6,6 +6,7 @@ import 'package:smartnotes/core/theme/theme.dart';
 import 'package:smartnotes/data/services/device_profile_service.dart';
 import 'package:smartnotes/domain/entities/device_profile.dart';
 import 'package:smartnotes/domain/entities/formatting_model.dart';
+import 'package:smartnotes/domain/entities/formatting_acceleration.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_screen.dart';
 import 'package:smartnotes/presentation/screens/settings/formatting_models_store.dart';
 import 'package:smartnotes/presentation/widgets/model_catalog_tile.dart';
@@ -103,6 +104,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('enabled preference never claims an unqualified GPU is active', (
+    tester,
+  ) async {
+    await render(tester);
+    store.gpu = const FormattingAccelerationStatus(
+      preferred: true,
+      lastRun: FormattingRunReport(
+        backend: FormattingBackend.cpu,
+        fellBack: true,
+        elapsed: Duration(seconds: 1),
+      ),
+    );
+    store.gpuReason = FormattingBackendReason.unqualified;
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      true,
+    );
+    expect(find.textContaining('have not been validated'), findsOneWidget);
+    expect(
+      find.text('Last completed request: CPU after GPU fallback.'),
+      findsOneWidget,
+    );
+    expect(find.text('Last completed request: Vulkan GPU.'), findsNothing);
+  });
+
+  testWidgets('active cleanup failure disables circuit retry', (tester) async {
+    await render(tester);
+    store.gpu = const FormattingAccelerationStatus(
+      preferred: true,
+      circuitOpen: true,
+      busy: true,
+    );
+    store.gpuReason = FormattingBackendReason.circuitOpen;
+    await tester.pumpAndSettle();
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Retry GPU eligibility'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
   testWidgets('downloaded model becomes active and cannot be deleted', (
     tester,
   ) async {
@@ -191,7 +233,11 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text(FormattingModel.gemma3_4b.name));
+    await tester.scrollUntilVisible(
+      find.text(FormattingModel.gemma3_4b.name),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });

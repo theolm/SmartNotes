@@ -4,6 +4,8 @@ import 'package:injectable/injectable.dart';
 import 'package:llamadart/llamadart.dart';
 import 'package:smartnotes/data/services/formatting_model_service.dart';
 import 'package:smartnotes/data/services/local_formatting_session.dart';
+import 'package:smartnotes/data/services/formatting_inference_runner.dart';
+import 'package:smartnotes/domain/entities/formatting_acceleration.dart';
 import 'package:smartnotes/data/services/local_inference_queue.dart';
 import 'package:smartnotes/domain/entities/ai_failure.dart';
 import 'package:smartnotes/domain/entities/enums/ai_action.dart';
@@ -14,8 +16,18 @@ import 'package:smartnotes/domain/services/i_transcription_service.dart';
 
 @LazySingleton(as: INoteProcessingService)
 class LocalNoteProcessingService implements INoteProcessingService {
-  LocalNoteProcessingService(this._models, this._transcription, this._queue)
-    : _session = LlamaFormattingSession.new;
+  LocalNoteProcessingService(
+    this._models,
+    this._transcription,
+    this._queue, {
+    FormattingInferenceRunner? inference,
+  }) : _inference =
+           inference ??
+           FormattingInferenceRunner.forTesting(
+             null,
+             _queue,
+             (_) => LlamaFormattingSession(),
+           );
   LocalNoteProcessingService.forTesting(
     this._models,
     this._transcription,
@@ -23,11 +35,15 @@ class LocalNoteProcessingService implements INoteProcessingService {
     required LocalFormattingSession Function() session,
     // Named injection keeps the test factory readable.
     // ignore: prefer_initializing_formals
-  }) : _session = session;
+  }) : _inference = FormattingInferenceRunner.forTesting(
+         null,
+         _queue,
+         (_) => session(),
+       );
   final IFormattingModelService _models;
   final ITranscriptionService _transcription;
   final LocalInferenceQueue _queue;
-  final LocalFormattingSession Function() _session;
+  final FormattingInferenceRunner _inference;
 
   @override
   Future<String> transcribe(String audioPath) =>
@@ -108,11 +124,15 @@ class LocalNoteProcessingService implements INoteProcessingService {
       throw const AiFailure(AiFailureCode.noSpeech);
     }
     final String path;
+    final modelId = _models.activeModelId;
     try {
       path = await InferenceTrace.run(
         'formatting.verify',
         _models.requireModelPath,
       );
+      if (_models.activeModelId != modelId) {
+        throw const AiFailure(AiFailureCode.unavailable);
+      }
     } on FormattingModelException catch (failure) {
       throw AiFailure(
         failure.problem == FormattingModelProblem.notReady
@@ -120,30 +140,19 @@ class LocalNoteProcessingService implements INoteProcessingService {
             : AiFailureCode.unavailable,
       );
     }
-    final session = _session();
     try {
-      try {
-        await InferenceTrace.run('formatting.load', () => session.load(path));
-      } catch (_) {
-        // The artifact may disappear after requireModelPath verified it.
-        // Recheck without misclassifying native failures of a valid model.
-        var ready = true;
-        try {
-          ready = await _models.isReady();
-        } catch (_) {
-          // A failed readiness probe is not evidence of a missing artifact.
-        }
-        throw AiFailure(
-          ready
-              ? AiFailureCode.unavailable
-              : AiFailureCode.formattingModelMissing,
-        );
-      }
-      final messages = [
-        LlamaChatMessage.fromText(
-          role: LlamaChatRole.system,
-          text:
-              '''You are a personal note assistant.
+      return await _inference.run(
+        path: path,
+        modelId: modelId,
+        workload: metadataOnly
+            ? FormattingWorkload.metadata
+            : FormattingWorkload.organization,
+        generate: (session) async {
+          final messages = [
+            LlamaChatMessage.fromText(
+              role: LlamaChatRole.system,
+              text:
+                  '''You are a personal note assistant.
 ${metadataOnly ? 'Generate only a title and subtitle for the source transcription in the same language as the transcription, not the app or system language. Never translate.' : 'Transform the source transcription into Markdown in the same language. Never translate.'}
 Preserve facts, names, dates, numbers, negation, uncertainty, intent and emotional tone.
 Do not invent content, explanations, commitments or reflections not in the source.
@@ -160,55 +169,69 @@ Fix grammar and punctuation.
 Presentation: ${_instruction(action)} Write the markdown body in the same language as the transcription; never translate it.
 Language is determined only by the source transcription, not by these English instructions, JSON field names, the preset name, or the app language.
 Preserve the language of each source passage, including mixed-language notes. Changing the presentation never authorizes translation.'''}''',
-        ),
-        // JSON quoting separates untrusted source from the system instructions.
-        LlamaChatMessage.fromText(
-          role: LlamaChatRole.user,
-          text: jsonEncode({'transcription': transcription}),
-        ),
-      ];
-      final inputTokens = await InferenceTrace.run(
-        'formatting.tokenize',
-        () => session.countPrompt(messages, format),
+            ),
+            // JSON quoting separates untrusted source from the system instructions.
+            LlamaChatMessage.fromText(
+              role: LlamaChatRole.user,
+              text: jsonEncode({'transcription': transcription}),
+            ),
+          ];
+          final inputTokens = await InferenceTrace.run(
+            'formatting.tokenize',
+            () => session.countPrompt(messages, format),
+          );
+          InferenceTrace.event('formatting.tokens', {'count': inputTokens});
+          if (inputTokens +
+                  LlamaFormattingSession.outputTokens +
+                  LlamaFormattingSession.safetyTokens >
+              LlamaFormattingSession.contextTokens) {
+            // Never silently truncate or summarize a note to fit the phone budget.
+            throw const AiFailure(AiFailureCode.noteTooLong);
+          }
+          final result = await InferenceTrace.run(
+            'formatting.generate',
+            () => session.generate(messages, format),
+          );
+          if (result.finishReason != LlamaFinishReason.stop) {
+            throw const AiFailure(AiFailureCode.incompleteNote);
+          }
+          final value = jsonDecode(result.text);
+          if (value is! Map<String, dynamic> ||
+              value.length != (metadataOnly ? 2 : 3) ||
+              value['title'] is! String ||
+              value['subTitle'] is! String ||
+              (value['title'] as String).trim().isEmpty ||
+              (metadataOnly
+                  ? (value['subTitle'] as String).trim().isEmpty
+                  : value['markdown'] is! String ||
+                        (value['markdown'] as String).trim().isEmpty)) {
+            throw const AiFailure(AiFailureCode.invalidNote);
+          }
+          if (!metadataOnly) {
+            value['markdown'] = _removeOpeningMetadata(
+              value['markdown'] as String,
+              value['title'] as String,
+              value['subTitle'] as String,
+            );
+            if ((value['markdown'] as String).trim().isEmpty) {
+              throw const AiFailure(AiFailureCode.invalidNote);
+            }
+          }
+          return value;
+        },
       );
-      InferenceTrace.event('formatting.tokens', {'count': inputTokens});
-      if (inputTokens +
-              LlamaFormattingSession.outputTokens +
-              LlamaFormattingSession.safetyTokens >
-          LlamaFormattingSession.contextTokens) {
-        // Never silently truncate or summarize a note to fit the phone budget.
-        throw const AiFailure(AiFailureCode.noteTooLong);
-      }
-      final result = await InferenceTrace.run(
-        'formatting.generate',
-        () => session.generate(messages, format),
+    } on FormattingLoadFailure {
+      // The artifact may disappear after verification. Do not classify a
+      // backend error as missing weights or retry it as a model download.
+      var ready = true;
+      try {
+        ready = await _models.isReady();
+      } catch (_) {}
+      throw AiFailure(
+        ready
+            ? AiFailureCode.unavailable
+            : AiFailureCode.formattingModelMissing,
       );
-      if (result.finishReason != LlamaFinishReason.stop) {
-        throw const AiFailure(AiFailureCode.incompleteNote);
-      }
-      final value = jsonDecode(result.text);
-      if (value is! Map<String, dynamic> ||
-          value.length != (metadataOnly ? 2 : 3) ||
-          value['title'] is! String ||
-          value['subTitle'] is! String ||
-          (value['title'] as String).trim().isEmpty ||
-          (metadataOnly
-              ? (value['subTitle'] as String).trim().isEmpty
-              : value['markdown'] is! String ||
-                    (value['markdown'] as String).trim().isEmpty)) {
-        throw const AiFailure(AiFailureCode.invalidNote);
-      }
-      if (!metadataOnly) {
-        value['markdown'] = _removeOpeningMetadata(
-          value['markdown'] as String,
-          value['title'] as String,
-          value['subTitle'] as String,
-        );
-        if ((value['markdown'] as String).trim().isEmpty) {
-          throw const AiFailure(AiFailureCode.invalidNote);
-        }
-      }
-      return value;
     } on AiFailure {
       rethrow;
     } on FormatException {
@@ -216,9 +239,6 @@ Preserve the language of each source passage, including mixed-language notes. Ch
     } catch (_) {
       // Provider/runtime errors can include source text: keep UI/logs safe.
       throw const AiFailure(AiFailureCode.unavailable);
-    } finally {
-      // This is awaited before the shared inference lease is released.
-      await InferenceTrace.run('formatting.dispose', session.dispose);
     }
   });
 

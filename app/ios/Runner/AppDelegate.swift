@@ -1,4 +1,17 @@
 import Flutter
+import os
+
+private func formattingModel() -> String {
+  #if targetEnvironment(simulator)
+  return "simulator"
+  #else
+  var size = 0
+  guard sysctlbyname("hw.machine", nil, &size, nil, 0) == 0 else { return "" }
+  var bytes = [CChar](repeating: 0, count: size)
+  guard sysctlbyname("hw.machine", &bytes, &size, nil, 0) == 0 else { return "" }
+  return String(cString: bytes)
+  #endif
+}
 import UIKit
 import UserNotifications
 
@@ -37,6 +50,9 @@ import UserNotifications
         case "profile":
           result([
             "memoryBytes": ProcessInfo.processInfo.physicalMemory,
+            "availableMemoryBytes": os_proc_available_memory(),
+            "hardwareIdentity": "ios:\(formattingModel())",
+            "runtimeIdentity": "ios:\(ProcessInfo.processInfo.operatingSystemVersionString)",
             "is64Bit": MemoryLayout<Int>.size == 8,
             "processors": ProcessInfo.processInfo.activeProcessorCount,
           ])

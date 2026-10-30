@@ -10,6 +10,10 @@ class DeviceProfile {
     this.sdkInt,
     this.supportedAbis = const [],
     this.hasVulkan11 = false,
+    this.availableMemoryBytes,
+    this.hardwareIdentity = '',
+    this.runtimeIdentity = '',
+    this.memoryPressure = false,
   });
   final int? memoryBytes;
   final bool lowMemory;
@@ -19,6 +23,16 @@ class DeviceProfile {
   final int? sdkInt;
   final List<String> supportedAbis;
   final bool hasVulkan11;
+  final int? availableMemoryBytes;
+
+  /// Stable hardware identity used for profile qualification. Never a serial.
+  final String hardwareIdentity;
+
+  /// OS build, driver generation and runtime identity for crash safety.
+  final String runtimeIdentity;
+
+  /// Transient OS memory pressure, separate from the device's low-RAM class.
+  final bool memoryPressure;
 
   bool get supportsArm64 => supportedAbis.contains('arm64-v8a');
 }

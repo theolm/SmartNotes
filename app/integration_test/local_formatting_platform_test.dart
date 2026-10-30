@@ -5,6 +5,13 @@ import 'package:integration_test/integration_test.dart';
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 import 'package:smartnotes/data/services/local_inference_queue.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smartnotes/data/services/device_profile_service.dart';
+import 'package:smartnotes/data/services/formatting_acceleration_service.dart';
+import 'package:smartnotes/data/services/formatting_inference_runner.dart';
+import 'package:smartnotes/data/services/gpu_circuit_store.dart';
+import 'package:smartnotes/data/services/local_formatting_session.dart';
+import 'package:smartnotes/domain/entities/formatting_acceleration.dart';
 import 'package:smartnotes/data/services/local_model_download.dart';
 import 'package:smartnotes/data/services/local_note_processing_service.dart';
 import 'package:smartnotes/domain/entities/enums/ai_action.dart';
@@ -91,11 +98,64 @@ void main() {
   final selected = FormattingModel.find(id);
   if (selected == null) throw ArgumentError.value(id, 'FORMATTING_MODEL_ID');
   final models = _InstalledModel(path, selected);
-  final service = LocalNoteProcessingService(
-    models,
-    _UnusedTranscription(),
-    LocalInferenceQueue(),
+  const backend = String.fromEnvironment(
+    'FORMATTING_BACKEND',
+    defaultValue: 'cpu',
   );
+  if (!['cpu', 'gpu'].contains(backend)) {
+    throw ArgumentError.value(backend, 'FORMATTING_BACKEND');
+  }
+  late LocalNoteProcessingService service;
+  FormattingAccelerationService? acceleration;
+  Directory? scratch;
+  setUpAll(() async {
+    if (path.isEmpty) return;
+    final queue = LocalInferenceQueue();
+    final device = DeviceProfileService();
+    final hardware = await device.read();
+    scratch = await Directory.systemTemp.createTemp(
+      'formatting-gpu-regression-',
+    );
+    SharedPreferences.setMockInitialValues({
+      FormattingAccelerationService.preferenceKey: backend == 'gpu',
+    });
+    acceleration = FormattingAccelerationService.forTesting(
+      await SharedPreferences.getInstance(),
+      device,
+      GpuCircuitStore.at(File('${scratch!.path}/circuit.json')),
+      profiles: [
+        for (final workload in FormattingWorkload.values)
+          FormattingGpuProfile(
+            id: 'regression-only',
+            hardware: hardware.hardwareIdentity,
+            modelId: selected.id,
+            workload: workload,
+            backend: Platform.isAndroid
+                ? FormattingBackend.vulkan
+                : FormattingBackend.metal,
+            minimumMemoryBytes: 0,
+            minimumAvailableBytes: 0,
+            gpuLayers: 999,
+          ),
+      ],
+    );
+    service = LocalNoteProcessingService(
+      models,
+      _UnusedTranscription(),
+      queue,
+      inference: FormattingInferenceRunner.forTesting(acceleration, queue, (
+        decision,
+      ) {
+        // Fail before inference if a requested GPU was denied by policy/memory.
+        expect(decision.usesGpu, backend == 'gpu');
+        return LlamaFormattingSession(decision: decision);
+      }),
+    );
+  });
+  tearDownAll(() async {
+    await acceleration?.dispose();
+    await scratch?.delete(recursive: true);
+  });
   testWidgets('real ${selected.id} generates metadata offline', (tester) async {
     final metadata = await service.generateMetadata(
       'Hoje conversei com Marina sobre o projeto em Lisboa. Não vou viajar amanhã.',

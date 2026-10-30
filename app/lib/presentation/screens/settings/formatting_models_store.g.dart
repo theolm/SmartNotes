@@ -54,6 +54,78 @@ mixin _$FormattingModelsStore on _FormattingModelsStore, Store {
     name: '_FormattingModelsStore.installedBytes',
   )).value;
 
+  late final _$gpuAtom = Atom(
+    name: '_FormattingModelsStore.gpu',
+    context: context,
+  );
+
+  @override
+  FormattingAccelerationStatus get gpu {
+    _$gpuAtom.reportRead();
+    return super.gpu;
+  }
+
+  @override
+  set gpu(FormattingAccelerationStatus value) {
+    _$gpuAtom.reportWrite(value, super.gpu, () {
+      super.gpu = value;
+    });
+  }
+
+  late final _$gpuReasonAtom = Atom(
+    name: '_FormattingModelsStore.gpuReason',
+    context: context,
+  );
+
+  @override
+  FormattingBackendReason get gpuReason {
+    _$gpuReasonAtom.reportRead();
+    return super.gpuReason;
+  }
+
+  @override
+  set gpuReason(FormattingBackendReason value) {
+    _$gpuReasonAtom.reportWrite(value, super.gpuReason, () {
+      super.gpuReason = value;
+    });
+  }
+
+  late final _$gpuSavingAtom = Atom(
+    name: '_FormattingModelsStore.gpuSaving',
+    context: context,
+  );
+
+  @override
+  bool get gpuSaving {
+    _$gpuSavingAtom.reportRead();
+    return super.gpuSaving;
+  }
+
+  @override
+  set gpuSaving(bool value) {
+    _$gpuSavingAtom.reportWrite(value, super.gpuSaving, () {
+      super.gpuSaving = value;
+    });
+  }
+
+  late final _$gpuErrorAtom = Atom(
+    name: '_FormattingModelsStore.gpuError',
+    context: context,
+  );
+
+  @override
+  bool get gpuError {
+    _$gpuErrorAtom.reportRead();
+    return super.gpuError;
+  }
+
+  @override
+  set gpuError(bool value) {
+    _$gpuErrorAtom.reportWrite(value, super.gpuError, () {
+      super.gpuError = value;
+    });
+  }
+
   late final _$activeIdAtom = Atom(
     name: '_FormattingModelsStore.activeId',
     context: context,
@@ -180,6 +252,28 @@ mixin _$FormattingModelsStore on _FormattingModelsStore, Store {
     });
   }
 
+  late final _$setGpuPreferredAsyncAction = AsyncAction(
+    '_FormattingModelsStore.setGpuPreferred',
+    context: context,
+  );
+
+  @override
+  Future<void> setGpuPreferred(bool preferred) {
+    return _$setGpuPreferredAsyncAction.run(
+      () => super.setGpuPreferred(preferred),
+    );
+  }
+
+  late final _$retryGpuAsyncAction = AsyncAction(
+    '_FormattingModelsStore.retryGpu',
+    context: context,
+  );
+
+  @override
+  Future<void> retryGpu() {
+    return _$retryGpuAsyncAction.run(() => super.retryGpu());
+  }
+
   late final _$loadAsyncAction = AsyncAction(
     '_FormattingModelsStore.load',
     context: context,
@@ -223,6 +317,10 @@ mixin _$FormattingModelsStore on _FormattingModelsStore, Store {
   @override
   String toString() {
     return '''
+gpu: ${gpu},
+gpuReason: ${gpuReason},
+gpuSaving: ${gpuSaving},
+gpuError: ${gpuError},
 activeId: ${activeId},
 profile: ${profile},
 loading: ${loading},

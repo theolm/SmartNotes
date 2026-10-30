@@ -9,6 +9,7 @@ import 'package:smartnotes/presentation/screens/settings/formatting_models_store
 import 'package:smartnotes/presentation/widgets/formatting_model_catalog.dart';
 import 'package:smartnotes/presentation/widgets/local_model_size.dart';
 import 'package:smartnotes/presentation/widgets/model_settings_page.dart';
+import 'package:smartnotes/domain/entities/formatting_acceleration.dart';
 
 @RoutePage()
 class FormattingModelsScreen extends StatefulWidget {
@@ -58,6 +59,45 @@ class _FormattingModelsScreenState extends State<FormattingModelsScreen>
               localModelSize(context, store.installedBytes),
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l10n.formattingGpuTitle),
+            subtitle: Text(switch (store.gpuReason) {
+              FormattingBackendReason.userDisabled =>
+                l10n.formattingGpuDisabled,
+              FormattingBackendReason.unqualified =>
+                l10n.formattingGpuUnqualified,
+              FormattingBackendReason.memory => l10n.formattingGpuMemory,
+              FormattingBackendReason.circuitOpen =>
+                l10n.formattingGpuInterrupted,
+              FormattingBackendReason.qualified => l10n.formattingGpuEligible,
+              FormattingBackendReason.fallback => l10n.formattingGpuFallback,
+            }),
+            value: store.gpu.preferred,
+            onChanged: store.gpuSaving ? null : store.setGpuPreferred,
+          ),
+          if (store.gpu.circuitOpen)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                onPressed: store.gpuSaving || store.gpu.busy
+                    ? null
+                    : store.retryGpu,
+                child: Text(l10n.formattingGpuRetry),
+              ),
+            ),
+          if (store.gpu.lastRun case final run? when store.gpu.preferred)
+            Text(
+              run.fellBack
+                  ? l10n.formattingGpuFallback
+                  : switch (run.backend) {
+                      FormattingBackend.cpu => l10n.formattingGpuLastCpu,
+                      FormattingBackend.vulkan => l10n.formattingGpuLastVulkan,
+                      FormattingBackend.metal => l10n.formattingGpuLastMetal,
+                    },
+            ),
+          if (store.gpuError) Text(l10n.formattingGpuSettingsError),
           const SizedBox(height: AppSpacing.lg),
           FormattingModelCatalog(store: store),
         ],

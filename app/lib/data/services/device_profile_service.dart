@@ -14,6 +14,10 @@ class DeviceProfileService {
           .timeout(const Duration(seconds: 2));
       return DeviceProfile(
         memoryBytes: data?['memoryBytes'] as int?,
+        availableMemoryBytes: data?['availableMemoryBytes'] as int?,
+        hardwareIdentity: data?['hardwareIdentity'] as String? ?? '',
+        runtimeIdentity: data?['runtimeIdentity'] as String? ?? '',
+        memoryPressure: data?['memoryPressure'] == true,
         lowMemory: data?['lowMemory'] == true,
         is64Bit: data?['is64Bit'] == true,
         processors: data?['processors'] as int?,
