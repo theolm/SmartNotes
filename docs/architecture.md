@@ -385,6 +385,11 @@ Formatting:
 - Generate an unsaved preview first. Persist only after explicit acceptance. Preserve the recording, original transcription, entry date, and creation timestamp.
 - A missing or corrupt formatting model maps to a formatting-specific failure, not the embedding-model message.
 - Keep the action enum, prompt mapping, localization, and action sheet in sync.
+- Formatting prompts use examples specific to the selected preset, never a
+  shared bullet-point body. Journal, formal-summary and casual-recap presets
+  require connected prose even when the current note is a list. Faithful
+  transcription preserves wording, order and existing lists with grammar and
+  punctuation fixes only; it is not a summary or a restoration of original text.
 
 Embeddings:
 
@@ -564,6 +569,12 @@ Model checks and journal recovery must never delay route protection or the first
   license before obtaining it; the test never downloads weights. Catalog/unit
   coverage is not evidence of native compatibility, fidelity or acceptable
   latency: validate the new 4B artifacts on target platforms separately.
+- Formatting regression coverage checks preset-specific prompts and examples,
+  unchanged-source previews and explicitly accepted chains. The opt-in native
+  test asserts prose versus bullets, faithful wording and existing source lists,
+  source-language preservation, and a key-points-to-journal transformation.
+  Structural assertions are not a semantic-fidelity guarantee; review real-model
+  outputs separately before claiming quality across all supported artifacts.
 - Native macOS integration coverage for adaptive entry selection lives in
   `integration_test/adaptive_journal_platform_test.dart`. It opens only a generated
   temporary journal, runs the actual SQLite worker and nested routes, and never

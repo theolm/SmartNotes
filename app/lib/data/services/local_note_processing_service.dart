@@ -155,12 +155,12 @@ ${metadataOnly ? 'The subtitle must be one concise sentence complementing the ti
 Do not repeat title or subTitle as opening headings, bold labels, or introductory metadata in markdown.
 Do not add a document heading or a generic opening label such as "Summary" or "Key points".
 Keep all source facts in the body; metadata must not be the only place containing a fact.
-Start directly with prose or bullets. Only the organized-note preset may use useful section headings (##), never a document title (#).
+Follow only the selected presentation preset below. Do not default to a bullet-point summary.
 Fix grammar and punctuation.
 Presentation: ${_instruction(action)} Write the markdown body in the same language as the transcription; never translate it.
-Example shape only; never copy its facts or language:
-{"title":"Tomorrow's conversation","subTitle":"Plans to speak with Ana.","markdown":"- Speak with Ana tomorrow."}
-Incorrect markdown opening for that example: # Tomorrow's conversation or **Plans to speak with Ana.**'''}''',
+Example of the selected preset only; never copy its facts or language:
+Source: {"transcription":"I want to speak with Ana tomorrow. I will not travel on Friday."}
+Output: ${jsonEncode({'title': 'Tomorrow’s conversation', 'subTitle': 'Plans to speak with Ana.', 'markdown': _exampleBody(action)})}'''}''',
         ),
         // JSON quoting separates untrusted source from the system instructions.
         LlamaChatMessage.fromText(
@@ -277,16 +277,31 @@ Incorrect markdown opening for that example: # Tomorrow's conversation or **Plan
 
   String _instruction(AiAction action) => switch (action) {
     AiAction.organizedNote =>
-      'Organize into a clear note. Start with the content; use ## section headings only where useful, without an opening summary that repeats metadata.',
+      'Organize into a clear note, preserving all source details. Group related ideas without turning the whole note into a summary. Start with the content; use ## section headings only where useful, never a document title (#). Use prose or lists where appropriate.',
     AiAction.journalEntry =>
-      'Start directly with reflective first-person prose using only the source thoughts. No headings or introductory labels.',
+      'Write connected first-person prose in paragraphs using only the source thoughts. Preserve the source details and emotional tone; do not invent reflections. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.keyPoints =>
-      'Start directly with concise bullets containing the key points. No headings or introductory labels.',
+      'Write concise bullet points, each starting with "- ", containing the source key points. Preserve facts and qualifications, including negation and uncertainty. No headings or introductory labels.',
     AiAction.formalSummary =>
-      'Start directly with neutral, formal summary prose. No headings or introductory labels.',
+      'Write neutral, formal summary prose in connected paragraphs. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.casualRecap =>
-      'Start directly with relaxed, conversational prose. No headings or introductory labels.',
+      'Write relaxed, conversational prose in connected paragraphs, preserving the source meaning and details. Convert source lists into sentences. No bullet points, numbered lists, headings or introductory labels.',
     AiAction.faithfulTranscription =>
-      'Keep the original wording and order; only fix punctuation and grammar. Do not add headings, labels or an introduction.',
+      'Keep the original wording, order, point of view and all details; only fix punctuation and grammar. Do not summarize, paraphrase, reorganize or turn prose into a list. Preserve existing source lists rather than inventing new ones. Already correct text must remain unchanged. Do not add headings, labels or an introduction.',
+  };
+
+  // Each preset demonstrates the same source, without a shared list-shaped bias.
+  String _exampleBody(AiAction action) => switch (action) {
+    AiAction.organizedNote =>
+      'I want to speak with Ana tomorrow. I will not travel on Friday.',
+    AiAction.journalEntry =>
+      'I want to speak with Ana tomorrow. I will not travel on Friday.',
+    AiAction.keyPoints => '- Speak with Ana tomorrow.\n- No travel on Friday.',
+    AiAction.formalSummary =>
+      'The author wants to speak with Ana tomorrow and will not travel on Friday.',
+    AiAction.casualRecap =>
+      'I want to talk with Ana tomorrow. I won’t be traveling on Friday.',
+    AiAction.faithfulTranscription =>
+      'I want to speak with Ana tomorrow. I will not travel on Friday.',
   };
 }

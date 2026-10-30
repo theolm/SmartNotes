@@ -258,6 +258,92 @@ void main() {
   });
 
   test(
+    'preset previews share the unchanged source until explicitly accepted',
+    () async {
+      final source = entry.copyWith(transcription: 'Original speech');
+      for (final action in AiAction.values) {
+        when(
+          () => processing.formatTranscription(
+            action: action,
+            transcription: 'Original speech',
+          ),
+        ).thenAnswer(
+          (_) async => ProcessedAudio(
+            title: 'Title',
+            subTitle: 'Subtitle',
+            markdown: 'Draft for ${action.name}',
+            transcription: 'Original speech',
+          ),
+        );
+        final draft = await useCase.applyAiAction(source, action);
+        expect(draft.formattedNote, 'Draft for ${action.name}');
+        expect(draft.transcription, source.transcription);
+        verify(
+          () => processing.formatTranscription(
+            action: action,
+            transcription: 'Original speech',
+          ),
+        ).called(1);
+      }
+      expect(source.body, 'Original speech');
+      verifyZeroInteractions(journal);
+    },
+  );
+
+  test(
+    'chained accepted presets use the current body and retain the original',
+    () async {
+      final source = entry.copyWith(transcription: 'Original speech');
+      when(
+        () => processing.formatTranscription(
+          action: AiAction.keyPoints,
+          transcription: source.body,
+        ),
+      ).thenAnswer(
+        (_) async => const ProcessedAudio(
+          title: 'Title',
+          subTitle: 'Subtitle',
+          markdown: '- Original speech',
+          transcription: 'Original speech',
+        ),
+      );
+      final bullets = await useCase.applyAiAction(source, AiAction.keyPoints);
+      verifyZeroInteractions(journal);
+      final accepted = await useCase.acceptAiDraft(source, bullets);
+      when(
+        () => processing.formatTranscription(
+          action: AiAction.journalEntry,
+          transcription: '- Original speech',
+        ),
+      ).thenAnswer(
+        (_) async => const ProcessedAudio(
+          title: 'Title',
+          subTitle: 'Subtitle',
+          markdown: 'Original speech.',
+          transcription: '- Original speech',
+        ),
+      );
+      final prose = await useCase.applyAiAction(
+        accepted,
+        AiAction.journalEntry,
+      );
+      expect(prose.body, 'Original speech.');
+      expect(prose.transcription, 'Original speech');
+      expect(prose.audioPath, source.audioPath);
+      expect(prose.createdAt, source.createdAt);
+      verify(() => journal.update(any(), expected: source)).called(1);
+      verify(
+        () => processing.formatTranscription(
+          action: AiAction.journalEntry,
+          transcription: '- Original speech',
+        ),
+      ).called(1);
+      verifyNoMoreInteractions(journal);
+      verifyNever(() => processing.transcribe(any()));
+    },
+  );
+
+  test(
     'restore clears only the current body and checks the source snapshot',
     () async {
       final source = entry.copyWith(

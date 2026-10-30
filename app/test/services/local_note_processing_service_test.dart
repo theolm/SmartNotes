@@ -305,7 +305,53 @@ void main() {
           session.messages!.first.content,
           contains('Do not repeat title or subTitle'),
         );
-        expect(session.messages!.first.content, contains('Example shape only'));
+        final prompt = session.messages!.first.content;
+        expect(prompt, contains('Example of the selected preset only'));
+        final example =
+            jsonDecode(prompt.split('Output: ').last) as Map<String, dynamic>;
+        final body = example['markdown'] as String;
+        expect(
+          example.keys,
+          unorderedEquals(['title', 'subTitle', 'markdown']),
+        );
+        expect(body, contains('Ana'));
+        expect(body, contains('tomorrow'));
+        expect(body.toLowerCase(), contains('friday'));
+        expect(body.toLowerCase(), matches(r'not|no |won’t'));
+        if (action == AiAction.keyPoints) {
+          expect(body.split('\n'), everyElement(startsWith('- ')));
+          expect(prompt, contains('each starting with "- "'));
+        } else {
+          expect(
+            RegExp(r'^\s*(?:[-*+]|\d+[.)])\s', multiLine: true).hasMatch(body),
+            false,
+          );
+        }
+        if (action == AiAction.journalEntry) {
+          expect(prompt, contains('first-person prose in paragraphs'));
+          expect(body, startsWith('I '));
+        }
+        switch (action) {
+          case AiAction.journalEntry:
+          case AiAction.formalSummary:
+          case AiAction.casualRecap:
+            expect(prompt, contains('Convert source lists into sentences'));
+            expect(prompt, contains('No bullet points, numbered lists'));
+          case AiAction.faithfulTranscription:
+            expect(
+              prompt,
+              contains('Do not summarize, paraphrase, reorganize'),
+            );
+            expect(prompt, contains('Preserve existing source lists'));
+            expect(
+              body,
+              'I want to speak with Ana tomorrow. I will not travel on Friday.',
+            );
+          case AiAction.organizedNote:
+            expect(prompt, contains('section headings only where useful'));
+          case AiAction.keyPoints:
+            break;
+        }
         expect(session.disposed, true);
       },
     );
