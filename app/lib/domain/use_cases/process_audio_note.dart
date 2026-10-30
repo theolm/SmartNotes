@@ -62,7 +62,7 @@ class ProcessAudioNoteUseCase {
       );
     }
     // Metadata is best-effort; persist speech first and never rewrite the body.
-    ({String title, String subTitle})? metadata;
+    ({String title, String subTitle, String? languageCode})? metadata;
     if (current.title == null || current.subTitle == null) {
       try {
         metadata = await _noteProcessingService.generateMetadata(
@@ -72,11 +72,15 @@ class ProcessAudioNoteUseCase {
         // An optional model failure must not turn a saved transcription into an error.
       }
     }
+    final existingLanguage = current.languageCode;
     return _journalEntryService.update(
       current.copyWith(
         status: EntryStatus.completed,
         title: current.title ?? metadata?.title,
         subTitle: current.subTitle ?? metadata?.subTitle,
+        languageCode: existingLanguage != null && existingLanguage.isNotEmpty
+            ? existingLanguage
+            : metadata?.languageCode,
       ),
       expected: current,
     );

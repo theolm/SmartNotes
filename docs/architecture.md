@@ -228,6 +228,7 @@ AutoRoute(page: EntryDetailRoute.page, guards: [LocalLockGuard()]),
 - Use enums for finite states such as entry status and AI action. Use typed failure classes for errors (`AiFailure`, `EntryWriteFailure`, `ModelDownloadCancelled`).
 - `JournalEntry` carries immutable audit timestamps (`createdAt`, `updatedAt`) and a user-editable `entryDate`. Ordering and grouping use `effectiveEntryDate`, which falls back to `createdAt` when `entryDate` is absent.
 - `JournalEntry.body` returns the accepted formatted note when present; otherwise it returns the original transcription. An intentionally empty formatted note must not reveal the original transcription.
+- `JournalEntry.languageCode` is the best-effort ISO 639-1 code of the recorded speech, written with generated metadata. It is null for typed entries, entries without a ready formatting model, and failed detection. It is metadata only: it does not change the body, status, text search, or index source.
 - Writes that can race with edits, imports, or deletion must compare an expected snapshot and reject stale updates.
 - Typed capture uses the first saved body as `transcription`, leaves `audioPath`
   and `formattedNote` null, and starts completed. `createTyped` writes the whole
@@ -292,7 +293,7 @@ Every model is a pinned artifact with an ID, file name, download URL, byte size,
   downloaded or activated until runtime and retrieval validation passes. An
   unvalidated model has no calibrated cutoff. See `embedding-calibration.md`.
 
-Never download from an unpinned `main` revision. Never switch the active model silently. The active model and the audio language are explicit, persisted choices. An English-only speech model can be active only for explicit English.
+Never download from an unpinned `main` revision. Never switch the active model silently. The active model and the audio language are explicit, persisted choices. An English-only speech model can be active only for explicit English. The audio-language setting selects the language expected by the speech model; it is distinct from a journal entry's detected language.
 
 ### Installation and verification
 
@@ -420,6 +421,7 @@ Formatting:
   text-only inference; do not download or load a vision projector.
 - The context budget is 4,096 tokens: 1,536 reserved output tokens and 64 safety tokens. Reject oversized input; never silently truncate or summarize.
 - Return JSON with exactly the required string fields. Reject malformed, incomplete, or empty output.
+- Initial metadata generation also returns the detected language as a lowercase ISO 639-1 code and persists it in `JournalEntry.languageCode`. The language is inferred from the transcription, never from the instructions or the app locale. Detection is best-effort: an absent, invalid, or unavailable value is stored as null and never fails metadata generation, transcription, or a completed entry. Only captures whose metadata generation runs receive a language; existing entries are not backfilled.
 - Generate an unsaved preview first. Persist only after explicit acceptance. Preserve the recording, original transcription, entry date, and creation timestamp.
 - A missing or corrupt formatting model maps to a formatting-specific failure, not the embedding-model message.
 - Keep the action enum, prompt mapping, localization, and action sheet in sync.

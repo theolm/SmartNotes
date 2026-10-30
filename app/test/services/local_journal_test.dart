@@ -733,6 +733,35 @@ void main() {
     },
   );
   test(
+    'detected language survives relaunch and backup round trips',
+    () async {
+      final entry = await completed();
+      final localized = await journal.update(
+        entry.copyWith(languageCode: 'pt'),
+      );
+      final bytes = await backups.export();
+      await journal.delete(localized.id);
+      await backups.import(bytes);
+      expect((await journal.getById(localized.id))!.languageCode, 'pt');
+      await database.close();
+      database = LocalDatabase();
+      await database.open(path: p.join(temporary.path, 'journal.sqlite'));
+      expect((await database.entry(localized.id))!.languageCode, 'pt');
+    },
+  );
+  test('language-only changes do not invalidate indexed vectors', () async {
+    final entry = await completed();
+    await search.indexPending();
+    expect((await database.indexStatus()).indexed, 1);
+    final localized = await journal.update(
+      entry.copyWith(languageCode: 'pt'),
+    );
+    expect(localized.languageCode, 'pt');
+    expect((await database.indexStatus()).indexed, 1);
+    expect((await database.indexStatus()).pending, 0);
+    expect(await database.pendingEntries(), isEmpty);
+  });
+  test(
     'missing model keeps entries pending for automatic indexing after setup',
     () async {
       await completed();

@@ -143,14 +143,20 @@ void main() {
             expected: entry,
           ),
         ).called(1);
-        return (title: 'Title', subTitle: 'Subtitle');
+        return (title: 'Title', subTitle: 'Subtitle', languageCode: 'pt');
       });
       final result = await useCase.process(entry);
       expect(result.title, 'Title');
       expect(result.subTitle, 'Subtitle');
+      expect(result.languageCode, 'pt');
       expect(result.body, 'Original speech');
       expect(result.formattedNote, isNull);
       expect(result.status, EntryStatus.completed);
+      final saved = verify(
+        () => journal.update(captureAny(), expected: any(named: 'expected')),
+      ).captured.cast<JournalEntry>();
+      expect(saved.last.languageCode, 'pt');
+      expect(saved.last.status, EntryStatus.completed);
     },
   );
   test('metadata failure still completes the transcribed note', () async {
@@ -161,6 +167,7 @@ void main() {
     expect(result.status, EntryStatus.completed);
     expect(result.transcription, 'Original speech');
     expect(result.title, isNull);
+    expect(result.languageCode, isNull);
   });
   test(
     'retry preserves existing metadata including explicitly empty fields',
@@ -178,7 +185,8 @@ void main() {
   );
   test('fills only missing metadata on retry', () async {
     when(() => processing.generateMetadata(any())).thenAnswer(
-      (_) async => (title: 'Generated', subTitle: 'Subtitle'),
+      (_) async =>
+          (title: 'Generated', subTitle: 'Subtitle', languageCode: 'en'),
     );
     final result = await useCase.process(
       entry.copyWith(
@@ -188,7 +196,41 @@ void main() {
     );
     expect(result.title, 'My title');
     expect(result.subTitle, 'Subtitle');
+    expect(result.languageCode, 'en');
     verifyNever(() => processing.transcribe(any()));
+  });
+  test('never replaces an existing detected language', () async {
+    when(() => processing.generateMetadata(any())).thenAnswer(
+      (_) async =>
+          (title: 'Generated', subTitle: 'Subtitle', languageCode: 'pt'),
+    );
+    final result = await useCase.process(
+      entry.copyWith(transcription: 'Original speech', languageCode: 'es'),
+    );
+    expect(result.languageCode, 'es');
+    expect(result.title, 'Generated');
+  });
+  test('empty stored language is replaced by detected language', () async {
+    when(() => processing.generateMetadata(any())).thenAnswer(
+      (_) async =>
+          (title: 'Generated', subTitle: 'Subtitle', languageCode: 'pt'),
+    );
+    final result = await useCase.process(
+      entry.copyWith(transcription: 'Original speech', languageCode: ''),
+    );
+    expect(result.languageCode, 'pt');
+  });
+  test('missing language detection keeps the note complete', () async {
+    when(() => processing.generateMetadata(any())).thenAnswer(
+      (_) async =>
+          (title: 'Generated', subTitle: 'Subtitle', languageCode: null),
+    );
+    final result = await useCase.process(
+      entry.copyWith(transcription: 'Original speech'),
+    );
+    expect(result.status, EntryStatus.completed);
+    expect(result.title, 'Generated');
+    expect(result.languageCode, isNull);
   });
   test('unavailable formatting does not affect successful capture', () async {
     when(
