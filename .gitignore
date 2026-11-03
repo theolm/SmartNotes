@@ -21,3 +21,6 @@ local.properties
 *.provisionprofile
 *.p8
 *.cer
+
+# Local DSH plugin sources (installed into the desktop profile by link)
+.dsh/

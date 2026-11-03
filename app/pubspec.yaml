@@ -103,8 +103,10 @@ hooks:
         platforms:
           android: [cpu, vulkan]
 
+# Android uses native vectors; do not overwrite them with raster generators.
+# Regenerate with: python3 tool/generate_android_icon.py
 flutter_launcher_icons:
-  android: true
+  android: false
   ios: true
   macos:
     generate: true
@@ -119,7 +121,7 @@ flutter_launcher_icons:
   background_color_ios: "#000000"
 
 flutter_native_splash:
-  android: true
+  android: false
   ios: true
   web: false
   color: "#000000"

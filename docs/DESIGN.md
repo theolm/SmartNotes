@@ -17,6 +17,25 @@ Signal red communicates a single primary, destructive, or live state. Widgets
 obtain colors from `Theme.of(context).colorScheme`; only the theme defines raw
 color values.
 
+## App Icon And Native Splash
+
+- Preserve the monochrome quote seal. Android uses native VectorDrawables, not
+  density-specific PNGs, for the launcher foreground, themed icon and splash.
+  The black background is a separate color resource; quote cutouts are transparent
+  so Android can tint the monochrome icon correctly.
+- `app/assets/app_icon_foreground.svg` is the source for Android geometry.
+  `app/tool/generate_android_icon.py` unions the stroked quotes and subtracts them
+  from the seal before exporting paths (VectorDrawable cannot use SVG masks).
+  Its header documents the pinned development-only Python dependencies.
+- The 108dp adaptive foreground stays inside the 66dp safe circle. The 288dp
+  Android 12 splash stays inside its 192dp safe circle. Day/night themes use the
+  same vector. Android 7 uses a vector layer-list fallback.
+- Android generation is disabled in `flutter_launcher_icons` and
+  `flutter_native_splash` to avoid overwriting these native resources. Apple
+  platforms retain their existing raster asset catalogs and generation settings.
+- Validate geometry and wiring with the icon tests and Android resource compilation;
+  confirm final masking and scaling on a device after a fresh build/install.
+
 ## Typography
 
 Archivo is bundled for UI text at weights 400, 500, 600, and 700. Archivo Black
